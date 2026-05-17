@@ -2,10 +2,10 @@ import random
 import asyncio
 import sys
 import os
-import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
-# 🚀 حل مشكلة الحزمة وتوافق الإصدار في الذاكرة (25.1.0)
+# 🚀 حل مشكلة توافق إصدار الحزمة في الذاكرة
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
@@ -16,25 +16,25 @@ from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
 from highrise.__main__ import run
 
-# 🌐 خادم ويب خفيف يستجيب لطلبات Render في مسار مستقل
-class WebServerHandler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass # كتم سجلات الطلبات لتنظيف الشاشة
-        
+# 🌐 خادم ويب سريع جداً للرد الفوري على منصة Render منعاً لقطع الاتصال
+class QuickWebServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"Bot is running smoothly!")
+        self.wfile.write(b"OK")
 
     def do_HEAD(self):
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/plain')
         self.end_headers()
 
-def run_web_server():
+    def log_message(self, format, *args):
+        pass # كتم السجلات لتسريع الاستجابة
+
+def start_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), WebServerHandler)
+    server = HTTPServer(('0.0.0.0', port), QuickWebServer)
     server.serve_forever()
 
 class MyBot(BaseBot):
@@ -161,10 +161,10 @@ class MyBot(BaseBot):
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
 if __name__ == "__main__":
-    # 🧵 تشغيل خادم الويب في مسار خلفي مستقل تماماً عن مسار البوت الرئيسي
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
-
-    # 🤖 تشغيل البوت باستخدام الإجراء القياسي المستقر للمكتبة
+    # 🧵 تشغيل خادم الويب فوراً في مسار منفصل قبل بدء تشغيل البوت
+    t = threading.Thread(target=start_server, daemon=True)
+    t.start()
+    
+    # 🤖 تشغيل البوت
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     run()
