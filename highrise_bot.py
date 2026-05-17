@@ -2,16 +2,12 @@ import random
 import asyncio
 import sys
 
-# 🚀 حل ذكي وبديل لتجنب مشكلة pkg_resources تماماً في النسخ الحديثة
-try:
-    import pkg_resources
-except ImportError:
-    # إنشاء حزمة وهمية في الذاكرة لتخدع مكتبة اللعبة وتجعلها تعمل دون قفل
-    from types import ModuleType
-    pkg_mod = ModuleType("pkg_resources")
-    pkg_mod.declare_namespace = lambda name: None
-    pkg_mod.get_distribution = lambda name: type("Dist", (), {"version": "23.1.0"})()
-    sys.modules["pkg_resources"] = pkg_mod
+# 🚀 حل برمجي مباشر لتوفير الحزمة الناقصة في ذاكرة النظام قبل استدعاء مكتبة اللعبة
+from types import ModuleType
+pkg_mod = ModuleType("pkg_resources")
+pkg_mod.declare_namespace = lambda name: None
+pkg_mod.get_distribution = lambda name: type("Dist", (), {"version": "23.1.0"})()
+sys.modules["pkg_resources"] = pkg_mod
 
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
