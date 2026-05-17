@@ -15,13 +15,22 @@ sys.modules["pkg_resources"] = pkg_mod
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
 
-# 🌐 خادم الويب في بيئة منفصلة تماماً
+# 🌐 خادم الويب المطور للرد على جميع طلبات منصة Render بنجاح
 class WebServerHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def send_sucess_response(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write(b"Bot is running smoothly!")
+
+    def do_GET(self):
+        self.send_sucess_response()
+
+    def do_HEAD(self):
+        # 🛠️ تم إضافة هذا المعالج لحل مشكلة الخطأ 501 التي ظهرت في السجلات
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
 
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
@@ -152,7 +161,7 @@ class MyBot(BaseBot):
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
 if __name__ == "__main__":
-    # ⚙️ تشغيل خادم الويب كعملية مستقلة تماماً (Process) لمنع أي تداخل مع البوت
+    # ⚙️ تشغيل خادم الويب الشامل كعملية مستقلة
     server_process = multiprocessing.Process(target=run_web_server, daemon=True)
     server_process.start()
 
