@@ -2,6 +2,8 @@ import random
 import asyncio
 import sys
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # 🚀 حل مشكلة الحزمة وتوافق الإصدار في الذاكرة (25.1.0)
 from types import ModuleType
@@ -12,29 +14,28 @@ sys.modules["pkg_resources"] = pkg_mod
 
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
-from highrise.__main__ import main as highrise_main
+from highrise.__main__ import run
 
-# 🌐 خادم الويب المتزامن للرد الفوري على نظام فحص المنافذ في Render
-async def handle_web_request(reader, writer):
-    data = await reader.read(1024)
-    response = (
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: 24\r\n"
-        "Connection: close\r\n\r\n"
-        "Bot is running smoothly!"
-    )
-    writer.write(response.encode('utf-8'))
-    await writer.drain()
-    writer.close()
-    await writer.wait_closed()
+# 🌐 خادم ويب خفيف يستجيب لطلبات Render في مسار مستقل
+class WebServerHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass # كتم سجلات الطلبات لتنظيف الشاشة
+        
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"Bot is running smoothly!")
 
-async def start_async_web_server():
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+def run_web_server():
     port = int(os.environ.get("PORT", 10000))
-    server = await asyncio.start_server(handle_web_request, '0.0.0.0', port)
-    print(f"🌐 خادم الويب نشط ويستمع الآن على المنفذ: {port}")
-    async with server:
-        await server.serve_forever()
+    server = HTTPServer(('0.0.0.0', port), WebServerHandler)
+    server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -57,7 +58,7 @@ class MyBot(BaseBot):
     async def on_start(self, session_metadata) -> None:
         self.bot_id = session_metadata.user_id 
         await self.highrise.walk_to(self.center_position)
-        print("🤖 تم تشغيل البوت بنجاح داخل الغرفة!")
+        print("🤖 تم تشغيل البوت بنجاح داخل الغرفة والتوجه للمنتصف!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         await self.highrise.chat(f"أهلاً بك يا {user.username}! 🌟 للتوقع ادفع 5 g بالحصالة واكتب رقم صندوقك.")
@@ -159,22 +160,11 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-# 🚀 دالة التشغيل التي تدمج السيرفر والبوت في حلقة واحدة متزامنة
-async def run_everything():
-    # تشغيل خادم الويب كخلفية متزامنة لمنع تعليق المنفذ
-    web_server_task = asyncio.create_task(start_async_web_server())
-    
-    # تمرير إعدادات تشغيل البوت الأساسية للمكتبة
-    sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
-    
-    try:
-        # تشغيل دالة المكتبة الرئيسية مباشرة لضمان بقاء الاتصال حياً
-        highrise_main()
-    finally:
-        # إلغاء مهمة السيرفر عند الإغلاق لتنظيف الذاكرة
-        web_server_task.cancel()
-
 if __name__ == "__main__":
-    # الحصول على حلقة الأحداث النشطة وتشغيل المهمة الموحدة فيها
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_everything())
+    # 🧵 تشغيل خادم الويب في مسار خلفي مستقل تماماً عن مسار البوت الرئيسي
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+
+    # 🤖 تشغيل البوت باستخدام الإجراء القياسي المستقر للمكتبة
+    sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
+    run()
