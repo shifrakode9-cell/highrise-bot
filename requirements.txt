@@ -1,2 +1,2 @@
 highrise-bot-sdk
-pendulum==2.1.2
+pendulum>=3.0.0
