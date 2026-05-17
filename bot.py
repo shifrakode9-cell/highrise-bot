@@ -30,7 +30,6 @@ async def handle_web_request(reader, writer):
     await writer.wait_closed()
 
 async def start_async_web_server():
-    # 📌 Render يتطلب الربط مع المنفذ 10000 أو المنفذ المتغير PORT
     port = int(os.environ.get("PORT", 10000))
     server = await asyncio.start_server(handle_web_request, '0.0.0.0', port)
     print(f"🌐 خادم الويب نشط ويستمع الآن على المنفذ: {port}")
@@ -160,16 +159,22 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-# 🚀 تشغيل البوت وخادم الويب معاً في نفس حلقة الأحداث دون حجب
+# 🚀 دالة التشغيل التي تدمج السيرفر والبوت في حلقة واحدة متزامنة
 async def run_everything():
-    # 1. تشغيل خادم الويب أولاً كمهام خلفية لفتح المنفذ فوراً
-    asyncio.create_task(start_async_web_server())
+    # تشغيل خادم الويب كخلفية متزامنة لمنع تعليق المنفذ
+    web_server_task = asyncio.create_task(start_async_web_server())
     
-    # 2. تمرير معلومات البوت الأساسية إلى النظام
+    # تمرير إعدادات تشغيل البوت الأساسية للمكتبة
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     
-    # 3. استدعاء مشغل المكتبة الرئيسي بشكل مباشر ومزامن
-    highrise_main()
+    try:
+        # تشغيل دالة المكتبة الرئيسية مباشرة لضمان بقاء الاتصال حياً
+        highrise_main()
+    finally:
+        # إلغاء مهمة السيرفر عند الإغلاق لتنظيف الذاكرة
+        web_server_task.cancel()
 
 if __name__ == "__main__":
-    asyncio.run(run_everything())
+    # الحصول على حلقة الأحداث النشطة وتشغيل المهمة الموحدة فيها
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_everything())
