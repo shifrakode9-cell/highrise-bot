@@ -1,8 +1,10 @@
 import random
 import asyncio
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# 🚀 تحديث رقم الإصدار الوهمي في الذاكرة ليتوافق تماماً مع السيرفر الجديد (25.1.0)
+# 🚀 حل مشكلة الحزمة الناقصة في الذاكرة
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
@@ -12,11 +14,27 @@ sys.modules["pkg_resources"] = pkg_mod
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
 
+# 🌐 كود الخادم الوهمي لإقناع Render بأن الخدمة هي موقع ويب نشط
+class WebServerHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"Bot is running smoothly!")
+
+def run_web_server():
+    # المنصة تمرر منفذ التشغيل تلقائياً عبر المتغير PORT، وإلا نستخدم 8080 افتراضياً
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), WebServerHandler)
+    print(f"🌐 تم تشغيل خادم الويب الوهمي على المنفذ {port}")
+    server.serve_forever()
+
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
         self.admin_username = "qais29"  # 👑 اسم حسابك المصرح له بالأوامر
-        self.bot_id = None              # 🤖 سيتم التعرف على معرف البوت تلقائياً
+        self.bot_id = None              
 
         self.allowed_to_predict = set() 
         self.paid_predictions = {}      
@@ -136,6 +154,11 @@ class MyBot(BaseBot):
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
 if __name__ == "__main__":
+    # 🧵 تشغيل خادم الويب في مسار منفصل (Thread) حتى لا يعطل عمل البوت الأساسي
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+
+    # تشغيل البوت
     from highrise.__main__ import run
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     run()
