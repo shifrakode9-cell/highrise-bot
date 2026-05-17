@@ -1,11 +1,11 @@
 import random
 import asyncio
 import sys
-import threading
-import time
+import multiprocessing
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# 🚀 حل مشكلة الحزمة الناقصة وتوافق الإصدار في الذاكرة (25.1.0)
+# 🚀 حل مشكلة الحزمة وتوافق الإصدار في الذاكرة (25.1.0)
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
@@ -15,7 +15,7 @@ sys.modules["pkg_resources"] = pkg_mod
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
 
-# 🌐 خادم الويب الوهمي لإقناع Render بأن البوت هو موقع ويب نشط
+# 🌐 خادم الويب في بيئة منفصلة تماماً
 class WebServerHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -24,10 +24,8 @@ class WebServerHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is running smoothly!")
 
 def run_web_server():
-    import os
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(('0.0.0.0', port), WebServerHandler)
-    print(f"🌐 تم تشغيل خادم الويب الوهمي على المنفذ {port}")
     server.serve_forever()
 
 class MyBot(BaseBot):
@@ -154,14 +152,11 @@ class MyBot(BaseBot):
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
 if __name__ == "__main__":
-    # 🧵 تشغيل خادم الويب أولاً في مسار منفصل
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
+    # ⚙️ تشغيل خادم الويب كعملية مستقلة تماماً (Process) لمنع أي تداخل مع البوت
+    server_process = multiprocessing.Process(target=run_web_server, daemon=True)
+    server_process.start()
 
-    # ⏱️ الانتظار لمدة ثانيتين لربط المنفذ والتقاطه بواسطة Render
-    time.sleep(2)
-
-    # 🤖 تشغيل البوت بالمعلومات الثابتة مباشرة
+    # 🤖 تشغيل البوت
     from highrise.__main__ import run
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     run()
