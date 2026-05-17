@@ -2,7 +2,7 @@ import random
 import asyncio
 import sys
 
-# 🚀 حل برمجي مباشر لتوفير الحزمة الناقصة في ذاكرة النظام قبل استدعاء مكتبة اللعبة
+# 🚀 حل برمجي مباشر لتوفير الحزمة الناقصة في الذاكرة قبل استدعاء مكتبة اللعبة
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
@@ -153,3 +153,8 @@ class MyBot(BaseBot):
                     await self.highrise.chat(f"💰 شكراً للاعب {sender.username} على دفع 5 g بالحصالة! اكتب الآن رقم الصندوق الذي تتوقعه بالشات ليتم تثبيته رسمياً.")
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
+
+# تأمين تشغيل الحزمة بالأرقام الممررة من إعدادات المنصة تلقائياً
+if __name__ == "__main__":
+    from highrise.__main__ import run
+    run()
