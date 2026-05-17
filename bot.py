@@ -1,9 +1,7 @@
 import random
 import asyncio
 import sys
-import multiprocessing
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # 🚀 حل مشكلة الحزمة وتوافق الإصدار في الذاكرة (25.1.0)
 from types import ModuleType
@@ -15,27 +13,30 @@ sys.modules["pkg_resources"] = pkg_mod
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
 
-# 🌐 خادم الويب المطور للرد على جميع طلبات منصة Render بنجاح
-class WebServerHandler(BaseHTTPRequestHandler):
-    def send_sucess_response(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write(b"Bot is running smoothly!")
+# 🌐 خادم الويب المتزامن المطور لتجنب حجب البوت
+async def handle_web_request(reader, writer):
+    data = await reader.read(1024)
+    request_text = data.decode('utf-8', errors='ignore')
+    
+    # الرد بالنجاح 200 سواء كان الطلب GET أو HEAD
+    response = (
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: 24\r\n"
+        "Connection: close\r\n\r\n"
+        "Bot is running smoothly!"
+    )
+    writer.write(response.encode('utf-8'))
+    await writer.drain()
+    writer.close()
+    await writer.wait_closed()
 
-    def do_GET(self):
-        self.send_sucess_response()
-
-    def do_HEAD(self):
-        # 🛠️ تم إضافة هذا المعالج لحل مشكلة الخطأ 501 التي ظهرت في السجلات
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-def run_web_server():
+async def start_async_web_server():
     port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), WebServerHandler)
-    server.serve_forever()
+    server = await asyncio.start_server(handle_web_request, '0.0.0.0', port)
+    print(f"🌐 تم تشغيل خادم الويب المتزامن على المنفذ {port}")
+    async with server:
+        await server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -160,12 +161,19 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-if __name__ == "__main__":
-    # ⚙️ تشغيل خادم الويب الشامل كعملية مستقلة
-    server_process = multiprocessing.Process(target=run_web_server, daemon=True)
-    server_process.start()
-
-    # 🤖 تشغيل البوت
+# 🚀 دالة التشغيل الرئيسية الموحدة لحلقة الأحداث
+def main():
+    loop = asyncio.get_event_loop()
+    
+    # 1. إدراج خادم الويب داخل حلقة الأحداث
+    loop.create_task(start_async_web_server())
+    
+    # 2. إعداد تشغيل البوت
     from highrise.__main__ import run
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
+    
+    # 3. تشغيل الكل معاً
     run()
+
+if __name__ == "__main__":
+    main()
