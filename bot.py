@@ -12,13 +12,11 @@ sys.modules["pkg_resources"] = pkg_mod
 
 from highrise import BaseBot, User, Position
 from highrise.models import CurrencyItem
+from highrise.__main__ import main as highrise_main
 
-# 🌐 خادم الويب المتزامن المطور لتجنب حجب البوت
+# 🌐 خادم الويب المتزامن للرد الفوري على نظام فحص المنافذ في Render
 async def handle_web_request(reader, writer):
     data = await reader.read(1024)
-    request_text = data.decode('utf-8', errors='ignore')
-    
-    # الرد بالنجاح 200 سواء كان الطلب GET أو HEAD
     response = (
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html\r\n"
@@ -32,9 +30,10 @@ async def handle_web_request(reader, writer):
     await writer.wait_closed()
 
 async def start_async_web_server():
-    port = int(os.environ.get("PORT", 8080))
+    # 📌 Render يتطلب الربط مع المنفذ 10000 أو المنفذ المتغير PORT
+    port = int(os.environ.get("PORT", 10000))
     server = await asyncio.start_server(handle_web_request, '0.0.0.0', port)
-    print(f"🌐 تم تشغيل خادم الويب المتزامن على المنفذ {port}")
+    print(f"🌐 خادم الويب نشط ويستمع الآن على المنفذ: {port}")
     async with server:
         await server.serve_forever()
 
@@ -59,7 +58,7 @@ class MyBot(BaseBot):
     async def on_start(self, session_metadata) -> None:
         self.bot_id = session_metadata.user_id 
         await self.highrise.walk_to(self.center_position)
-        print("🤖 تم تشغيل البوت المستقر والتوجه إلى منتصف الغرفة!")
+        print("🤖 تم تشغيل البوت بنجاح داخل الغرفة!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         await self.highrise.chat(f"أهلاً بك يا {user.username}! 🌟 للتوقع ادفع 5 g بالحصالة واكتب رقم صندوقك.")
@@ -161,19 +160,16 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-# 🚀 دالة التشغيل الرئيسية الموحدة لحلقة الأحداث
-def main():
-    loop = asyncio.get_event_loop()
+# 🚀 تشغيل البوت وخادم الويب معاً في نفس حلقة الأحداث دون حجب
+async def run_everything():
+    # 1. تشغيل خادم الويب أولاً كمهام خلفية لفتح المنفذ فوراً
+    asyncio.create_task(start_async_web_server())
     
-    # 1. إدراج خادم الويب داخل حلقة الأحداث
-    loop.create_task(start_async_web_server())
-    
-    # 2. إعداد تشغيل البوت
-    from highrise.__main__ import run
+    # 2. تمرير معلومات البوت الأساسية إلى النظام
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     
-    # 3. تشغيل الكل معاً
-    run()
+    # 3. استدعاء مشغل المكتبة الرئيسي بشكل مباشر ومزامن
+    highrise_main()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(run_everything())
