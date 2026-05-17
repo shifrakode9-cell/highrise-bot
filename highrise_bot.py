@@ -1,3 +1,13 @@
+import sys
+import subprocess
+
+# 🚀 حل مشكلة الحزمة الناقصة بشكل قسري عند بدء التشغيل مباشرة
+try:
+    import pkg_resources
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools"])
+    import pkg_resources
+
 import random
 import asyncio
 from highrise import BaseBot, User, Position
