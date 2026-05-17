@@ -1,2 +1,2 @@
-highrise-bot-sdk==2.3.11
+highrise-bot-sdk==3.1.2
 pendulum==2.1.2
