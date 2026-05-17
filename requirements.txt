@@ -1,3 +1,2 @@
 highrise-bot-sdk
-poetry-core
-pendulum
+datetime
