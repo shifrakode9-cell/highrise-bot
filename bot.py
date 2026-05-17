@@ -2,7 +2,7 @@ import random
 import asyncio
 import sys
 
-# 🚀 حل برمجي مباشر لتوفير الحزمة الناقصة في الذاكرة قبل استدعاء مكتبة اللعبة
+# 🚀 حل مشكلة الحزمة الناقصة في الذاكرة
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
@@ -16,43 +16,31 @@ class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
         self.admin_username = "qais29"  # 👑 اسم حسابك المصرح له بالأوامر
-        self.bot_id = None              # 🤖 سيتم التعرف على معرف البوت تلقائياً عند الدخول
+        self.bot_id = None              # 🤖 سيتم التعرف على معرف البوت تلقائياً
 
-        self.allowed_to_predict = set() # سجل اللاعبين الذين دفعوا 5 g وينتظر البوت رقم توقعهم
-        self.paid_predictions = {}      # التوقعات المؤكدة والنهائية {user_id: {"username": name, "prediction": number}}
-        self.ignored_players = set()    # قائمة اللاعبين الذين دفعوا 10 g ويتم تجاهل أرقامهم وتوقعاتهم
+        self.allowed_to_predict = set() 
+        self.paid_predictions = {}      
+        self.ignored_players = set()    
 
-        # مواقع مرنة يتم تحديثها يدوياً بالأوامر (منصة / منتصف)
-        self.center_position = Position(8.5, 0, 8.5, "facingFront") # موقع المنتصف الافتراضي
-        self.podium_position = Position(0, 0, 0, "facingFront")      # موقع المنصة الافتراضي
+        self.center_position = Position(8.5, 0, 8.5, "facingFront") 
+        self.podium_position = Position(0, 0, 0, "facingFront")      
 
-        # قائمة الرقصات المتنوعة لتغيير الرقصة في كل مرة عند الفوز
         self.dance_emotes = [
-            "emote-celebrate",
-            "emote-dance-tiktok",
-            "emote-robot",
-            "emote-disco",
-            "emote-fail",
-            "emote-hot",
-            "emote-laughing",
-            "emote-wild"
+            "emote-celebrate", "emote-dance-tiktok", "emote-robot", 
+            "emote-disco", "emote-fail", "emote-hot", "emote-laughing", "emote-wild"
         ]
 
-    # عند تشغيل البوت ودخوله الغرفة
     async def on_start(self, session_metadata) -> None:
-        self.bot_id = session_metadata.user_id # 🎯 حفظ معرف البوت لضمان دقة التعرف على الحصالة
+        self.bot_id = session_metadata.user_id 
         await self.highrise.walk_to(self.center_position)
         print("🤖 تم تشغيل البوت المستقر والتوجه إلى منتصف الغرفة!")
 
-    # الترحيب ورسوم الاشتراك العام
     async def on_user_join(self, user: User, position: Position) -> None:
         await self.highrise.chat(f"أهلاً بك يا {user.username}! 🌟 للتوقع ادفع 5 g بالحصالة واكتب رقم صندوقك.")
 
-    # معالجة الشات والأوامر
     async def on_chat(self, user: User, message: str) -> None:
         text = message.strip()
 
-        # [أمر حفظ منتصف الغرفة الحالي]
         if text == "منتصف" and user.username.lower() == self.admin_username.lower():
             room_users = await self.highrise.get_room_users()
             for room_user, pos in room_users.content:
@@ -63,7 +51,6 @@ class MyBot(BaseBot):
                     break
             return
 
-        # [أمر حفظ موقع المنصة الحالي]
         if text == "منصة" and user.username.lower() == self.admin_username.lower():
             room_users = await self.highrise.get_room_users()
             for room_user, pos in room_users.content:
@@ -73,7 +60,6 @@ class MyBot(BaseBot):
                     break
             return
 
-        # [أمر لكم شخص في الغرفة والعودة تلقائياً للمنتصف]
         if text.startswith("لكم ") and user.username.lower() == self.admin_username.lower():
             target_username = text.replace("لكم ", "").strip().replace("@", "")
             room_users = await self.highrise.get_room_users()
@@ -95,7 +81,6 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ لم أجد اللاعب @{target_username} في الغرفة حالياً!")
             return
 
-        # أمر مسح السجلات يدوياً
         if text == "مسح" and user.username.lower() == self.admin_username.lower():
             self.allowed_to_predict.clear()
             self.paid_predictions.clear()
@@ -103,7 +88,6 @@ class MyBot(BaseBot):
             await self.highrise.chat("🔄 تم مسح سجلات الجولة، التوقعات، وقائمة تجسير لاعبي الـ 10 g!")
             return
 
-        # أمر استخراج الفائز بالتوقع والرقص المتغير والعودة للمنتصف
         if text.startswith("فائز خمسين ") and user.username.lower() == self.admin_username.lower():
             winning_number = text.replace("فائز خمسين ", "").strip()
             if winning_number.isdigit():
@@ -127,7 +111,6 @@ class MyBot(BaseBot):
                     await self.highrise.chat(f"❌ لا يوجد أي لاعب توقع الرقم ({winning_number}) ودفع 5 g!")
             return
 
-        # استقبال أرقام التوقعات من اللاعبين
         if text.isdigit():
             if user.id in self.ignored_players:
                 return
@@ -138,10 +121,8 @@ class MyBot(BaseBot):
             else:
                 await self.highrise.chat(f"⚠️ يا {user.username}، لتوقع رقم صندوق رابح يجب عليك وضع 5 g في الحصالة أولاً!")
 
-    # معالجة المدفوعات في حصالة البوت فقط
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
         try:
-            # التأكد أن الدفع موجه للبوت وأن العملة هي الذهب
             if receiver.id == self.bot_id and tip.item == "gold":
                 if tip.amount == 10:
                     self.ignored_players.add(sender.id)
@@ -154,7 +135,9 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-# تأمين تشغيل الحزمة بالأرقام الممررة من إعدادات المنصة تلقائياً
+# 🛠️ تشغيل البوت مباشرة بالبيانات الثابتة لتفادي أخطاء منصة Render
 if __name__ == "__main__":
     from highrise.__main__ import run
+    # وضع المعرف والتوكن مباشرة هنا كوسيط داخل أمر التشغيل الخاص بـ Highrise
+    sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     run()
