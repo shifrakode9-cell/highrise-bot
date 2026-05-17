@@ -2,11 +2,11 @@ import random
 import asyncio
 import sys
 
-# 🚀 حل مشكلة الحزمة الناقصة في الذاكرة
+# 🚀 تحديث رقم الإصدار الوهمي في الذاكرة ليتوافق تماماً مع السيرفر الجديد (25.1.0)
 from types import ModuleType
 pkg_mod = ModuleType("pkg_resources")
 pkg_mod.declare_namespace = lambda name: None
-pkg_mod.get_distribution = lambda name: type("Dist", (), {"version": "23.1.0"})()
+pkg_mod.get_distribution = lambda name: type("Dist", (), {"version": "25.1.0"})()
 sys.modules["pkg_resources"] = pkg_mod
 
 from highrise import BaseBot, User, Position
@@ -135,9 +135,7 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"حدث خطأ في استقبال الدفع: {e}")
 
-# 🛠️ تشغيل البوت مباشرة بالبيانات الثابتة لتفادي أخطاء منصة Render
 if __name__ == "__main__":
     from highrise.__main__ import run
-    # وضع المعرف والتوكن مباشرة هنا كوسيط داخل أمر التشغيل الخاص بـ Highrise
     sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
     run()
