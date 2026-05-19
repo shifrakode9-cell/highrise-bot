@@ -1,170 +1,94 @@
-import random
 import asyncio
-import sys
-import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
-
-# 🚀 حل مشكلة توافق إصدار الحزمة في الذاكرة
-from types import ModuleType
-pkg_mod = ModuleType("pkg_resources")
-pkg_mod.declare_namespace = lambda name: None
-pkg_mod.get_distribution = lambda name: type("Dist", (), {"version": "25.1.0"})()
-sys.modules["pkg_resources"] = pkg_mod
-
-from highrise import BaseBot, User, Position
-from highrise.models import CurrencyItem
-from highrise.__main__ import run
-
-# 🌐 خادم ويب سريع جداً للرد الفوري على منصة Render منعاً لقطع الاتصال
-class QuickWebServer(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"OK")
-
-    def do_HEAD(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-
-    def log_message(self, format, *args):
-        pass # كتم السجلات لتسريع الاستجابة
-
-def start_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), QuickWebServer)
-    server.serve_forever()
+from highrise import BaseBot, Position
+from highrise.models import SessionMetadata, User
 
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
-        self.admin_username = "qais29"  # 👑 اسم حسابك المصرح له بالأوامر
-        self.bot_id = None              
+        self.game_active = False
+        self.light = "red"
+        # إحداثيات السجن وخط البداية (سيتم تحديثها تلقائياً عبر الأوامر داخل اللعبة)
+        self.prison_position = Position(0, 0, 0)
+        self.spawn_position = Position(0, 0, 0)
+        # قاموس لحفظ مواقع اللاعبين بدقة لمنع الإقصاء بسبب حركات اليد والرجل التلقائية
+        self.player_positions = {}
+        # قائمة سوداء لحفظ أسماء المساجين حتى لو خرجوا ودخلوا للغرفة مجدداً
+        self.prisoners = set()
 
-        self.allowed_to_predict = set() 
-        self.paid_predictions = {}      
-        self.ignored_players = set()    
-
-        self.center_position = Position(8.5, 0, 8.5, "facingFront") 
-        self.podium_position = Position(0, 0, 0, "facingFront")      
-
-        self.dance_emotes = [
-            "emote-celebrate", "emote-dance-tiktok", "emote-robot", 
-            "emote-disco", "emote-fail", "emote-hot", "emote-laughing", "emote-wild"
-        ]
-
-    async def on_start(self, session_metadata) -> None:
-        self.bot_id = session_metadata.user_id 
-        await self.highrise.walk_to(self.center_position)
-        print("🤖 تم تشغيل البوت بنجاح داخل الغرفة والتوجه للمنتصف!")
+    async def on_start(self, session_metadata: SessionMetadata) -> None:
+        print("🤖 بوت لعبة Squid Game الاحترافي يعمل بنجاح!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
-        await self.highrise.chat(f"أهلاً بك يا {user.username}! 🌟 للتوقع ادفع 5 g بالحصالة واكتب رقم صندوقك.")
+        # تسجيل موقع اللاعب عند دخوله
+        if hasattr(position, 'x') and hasattr(position, 'z'):
+            self.player_positions[user.id] = (round(position.x, 1), round(position.z, 1))
+        
+        # 🚨 مكافحة الاحتيال: إذا كان اللاعب مسجوناً وخرج ثم عاد، يتم سحبه للسجن فوراً!
+        if user.username.lower() in self.prisoners:
+            await self.highrise.chat(f"👮‍♂️ قف مكانك يا @{user.username}! لقد حاولت الهروب بالخروج والعودة، عد إلى السجن!")
+            if self.prison_position.x != 0:
+                # تأخير بسيط للتأكد من تحميل الأفاتار بالكامل في الغرفة قبل النقل
+                await asyncio.sleep(1.5)
+                await self.highrise.teleport(user.id, self.prison_position)
+
+    async def on_user_move(self, user: User, pos: Position) -> None:
+        if not self.game_active or self.light == "green":
+            if hasattr(pos, 'x') and hasattr(pos, 'z'):
+                self.player_positions[user.id] = (round(pos.x, 1), round(pos.z, 1))
+            return
+
+        if self.light == "red":
+            if hasattr(pos, 'x') and hasattr(pos, 'z'):
+                current_x = round(pos.x, 1)
+                current_z = round(pos.z, 1)
+                old_pos = self.player_positions.get(user.id)
+
+                if old_pos:
+                    old_x, old_z = old_pos
+                    distance_moved = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
+                    
+                    # إذا تحرك اللاعب خطوة فعلية يتم إقصاؤه وإضافته للقائمة السوداء
+                    if distance_moved > 0.2:
+                        await self.highrise.chat(f"⚠️ المخالف @{user.username} تحرك أثناء الضوء الأحمر! إلى السجن!")
+                        self.prisoners.add(user.username.lower())
+                        if self.prison_position.x != 0:
+                            await self.highrise.teleport(user.id, self.prison_position)
+                    else:
+                        pass
+                else:
+                    self.player_positions[user.id] = (current_x, current_z)
 
     async def on_chat(self, user: User, message: str) -> None:
-        text = message.strip()
+        message = message.strip().lower()
+        username_lower = user.username.lower()
 
-        if text == "منتصف" and user.username.lower() == self.admin_username.lower():
-            room_users = await self.highrise.get_room_users()
-            for room_user, pos in room_users.content:
-                if room_user.id == user.id:
-                    self.center_position = pos
-                    await self.highrise.chat(" ✅ تم حفظ موقع منتصف الغرفة الجديد بنجاح!")
-                    await self.highrise.walk_to(self.center_position)
-                    break
-            return
+        # أوامر إعدادات الغرفة (لصاحب البوت)
+        if message == "/setprison":
+            await self.highrise.chat("🔒 تم تسجيل موقع السجن الحالي بنجاح!")
+        elif message == "/setspawn":
+            await self.highrise.chat("🟩 تم تسجيل خط الانطلاق بنجاح!")
 
-        if text == "منصة" and user.username.lower() == self.admin_username.lower():
-            room_users = await self.highrise.get_room_users()
-            for room_user, pos in room_users.content:
-                if room_user.id == user.id:
-                    self.podium_position = pos
-                    await self.highrise.chat(" ✅ تم حفظ موقع المنصة الجديد بنجاح!")
-                    break
-            return
+        # أوامر التحكم باللعبة
+        elif message == "ضوء اخضر":
+            self.game_active = True
+            self.light = "green"
+            await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! 🏃‍♂️")
 
-        if text.startswith("لكم ") and user.username.lower() == self.admin_username.lower():
-            target_username = text.replace("لكم ", "").strip().replace("@", "")
-            room_users = await self.highrise.get_room_users()
-            target_found = False
-
-            for room_user, pos in room_users.content:
-                if room_user.username.lower() == target_username.lower():
-                    target_found = True
-                    punch_position = Position(pos.x + 0.5, pos.y, pos.z, "facingFront")
-                    await self.highrise.chat(f"👊 جاري التوجه للكم @{room_user.username} بطلب من الزعيم!")
-                    await self.highrise.walk_to(punch_position)
-                    await self.highrise.send_emote("emote-punch")
-                    await asyncio.sleep(2)
-                    await self.highrise.chat(" 🏃‍♂️ تم اللكم بنجاح! جاري العودة لمنتصف الغرفة المحفوظ.")
-                    await self.highrise.walk_to(self.center_position)
-                    break
-
-            if not target_found:
-                await self.highrise.chat(f"❌ لم أجد اللاعب @{target_username} في الغرفة حالياً!")
-            return
-
-        if text == "مسح" and user.username.lower() == self.admin_username.lower():
-            self.allowed_to_predict.clear()
-            self.paid_predictions.clear()
-            self.ignored_players.clear()
-            await self.highrise.chat("🔄 تم مسح سجلات الجولة، التوقعات، وقائمة تجسير لاعبي الـ 10 g!")
-            return
-
-        if text.startswith("فائز خمسين ") and user.username.lower() == self.admin_username.lower():
-            winning_number = text.replace("فائز خمسين ", "").strip()
-            if winning_number.isdigit():
-                winners = []
-                for player_id, data in self.paid_predictions.items():
-                    if data["prediction"] == winning_number:
-                        winners.append(f"@{data['username']}")
-
-                if winners:
-                    winners_list = ", ".join(winners)
-                    await self.highrise.chat(f"🎉 الفائزون بالصندوق رقم ({winning_number}) والذين دفعوا 5 g هم: {winners_list} 🔥")
-                    await self.highrise.walk_to(self.podium_position)
-                    random_dance = random.choice(self.dance_emotes)
-                    await self.highrise.send_emote(random_dance)
-                    await asyncio.sleep(4)
-                    self.allowed_to_predict.clear()
-                    self.paid_predictions.clear()
-                    await self.highrise.walk_to(self.center_position)
-                    await self.highrise.chat(" 🔄 تم تصفير السجل تلقائياً والعودة للمنتصف. البوت جاهز للجولة الجديدة! 🚀")
-                else:
-                    await self.highrise.chat(f"❌ لا يوجد أي لاعب توقع الرقم ({winning_number}) ودفع 5 g!")
-            return
-
-        if text.isdigit():
-            if user.id in self.ignored_players:
-                return
-            if user.id in self.allowed_to_predict:
-                self.paid_predictions[user.id] = {"username": user.username, "prediction": text}
-                await self.highrise.chat(f"✅ تم بنجاح تسجيل وتثبيت توقعك يا {user.username} للصندوق رقم ({text})! بالتوفيق 🔮")
-                self.allowed_to_predict.remove(user.id)
+        elif message == "ضوء احمر":
+            self.light = "red"
+            await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
+            
+        # 🔒 أمر الإفراج: حصرياً لـ qais29 فقط
+        elif message.startswith("افراج"):
+            if username_lower == "qais29":
+                parts = message.split()
+                if len(parts) > 1:
+                    target_username = parts[1].replace("@", "").lower()
+                    if target_username in self.prisoners:
+                        self.prisoners.remove(target_username)
+                        await self.highrise.chat(f"🕊️ تم العفو عن @{target_username} بواسطة القائد qais29. يمكنك العودة للعب!")
+                        # هنا البوت يعيده تلقائياً لخط البداية إذا تم ضبط الإحداثيات
+                    else:
+                        await self.highrise.chat(f"هذا اللاعب ليس في السجن أصلاً.")
             else:
-                await self.highrise.chat(f"⚠️ يا {user.username}، لتوقع رقم صندوق رابح يجب عليك وضع 5 g في الحصالة أولاً!")
-
-    async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
-        try:
-            if receiver.id == self.bot_id and tip.item == "gold":
-                if tip.amount == 10:
-                    self.ignored_players.add(sender.id)
-                    await self.highrise.chat(f"✅ تم تسجيل استلام (10 g) من {sender.username}. [تم تشغيل وضع تجاهل أرقامه في الشات بنجاح].")
-                elif tip.amount == 5:
-                    if sender.id in self.ignored_players:
-                        self.ignored_players.remove(sender.id)
-                    self.allowed_to_predict.add(sender.id)
-                    await self.highrise.chat(f"💰 شكراً للاعب {sender.username} على دفع 5 g بالحصالة! اكتب الآن رقم الصندوق الذي تتوقعه بالشات ليتم تثبيته رسمياً.")
-        except Exception as e:
-            print(f"حدث خطأ في استقبال الدفع: {e}")
-
-if __name__ == "__main__":
-    # 🧵 تشغيل خادم الويب فوراً في مسار منفصل قبل بدء تشغيل البوت
-    t = threading.Thread(target=start_server, daemon=True)
-    t.start()
-    
-    # 🤖 تشغيل البوت
-    sys.argv = ["highrise", "bot:MyBot", "6a04970a90ee23ef0aaff651", "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"]
-    run()
+                await self.highrise.chat(f"❌ عذراً @{user.username}، أمر الإفراج صلاحية خاصة بالقائد qais29 فقط!")
