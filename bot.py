@@ -7,7 +7,6 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User
 
-# لضمان استيراد ملفات المكتبة وتجهيز التشغيل الآلي لريندر
 try:
     from highrise.__main__ import BotDefinition, main
 except ImportError:
@@ -17,7 +16,6 @@ except ImportError:
 # 1️⃣ كود السيرفر الوهمي لحل مشكلة إغلاق Render المبكر (Web Service Port)
 # ---------------------------------------------------------
 def run_dummy_server():
-    # سحب البورت الممرر من ريندر أو استخدام 8000 كاحتياطي لربط المنافذ تلقائياً
     port = int(os.environ.get("PORT", os.environ.get("highrise_room_port", 8000)))
     try:
         server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
@@ -26,12 +24,11 @@ def run_dummy_server():
     except Exception as e:
         print(f"⚠️ تنبيه السيرفر الوهمي: {e}")
 
-# تشغيل خيط المعالجة الذكي في الخلفية قبل استدعاء البوت لفتح البورت فوراً
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 
 # ---------------------------------------------------------
-# 2️⃣ كود بوت لعبة Squid Game الكامل والأصلي الخاص بك
+# 2️⃣ كود بوت لعبة Squid Game المطور
 # ---------------------------------------------------------
 class MyBot(BaseBot):
     def __init__(self):
@@ -50,7 +47,7 @@ class MyBot(BaseBot):
         self.prisoners = set()
         self.game_task = None
 
-        # قاموس الـ 10 رقصات
+        # قاموس الرقصات الخاص باللاعبين
         self.dance_moves = {
             "1": "dance-tiktok8",
             "2": "dance-russian",
@@ -121,15 +118,24 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        if self.light == "red":
+        # 🛑 ميكانيكية رصد المخالفين في الضوء الأحمر
+        if self.light == "red" and username_lower not in self.prisoners:
             old_pos = self.player_positions.get(user.id)
             if old_pos:
                 old_x, old_z = old_pos
                 distance_moved = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
+                
                 if distance_moved > 0.2:
-                    await self.highrise.chat(f"⚠️ المخالف @{user.username} تحرك أثناء الضوء الأحمر! إلى السجن!")
                     self.prisoners.add(username_lower)
+                    await self.highrise.chat(f"💥 إقصاااء! المخالف @{user.username} تحرك في الضوء الأحمر وسقط أرضاً!")
+                    
+                    try:
+                        await self.highrise.send_emote("dance-drop", user.id)
+                    except Exception as e:
+                        print(f"Error sending punish emote: {e}")
+                    
                     if self.prison_position.x != 0:
+                        await asyncio.sleep(2.5)
                         await self.highrise.teleport(user.id, self.prison_position)
             else:
                 self.player_positions[user.id] = (current_x, current_z)
@@ -143,9 +149,17 @@ class MyBot(BaseBot):
                 
                 if not self.game_active: break
                 
-                self.light = "red"
-                await self.highrise.chat(f"🔴 ضوء أحمر! قف مكاااانك! 🛑")
-                await asyncio.sleep(random.uniform(3.0, 5.0))
+                red_loops = random.choice([1, 2])
+                for i in range(red_loops):
+                    self.light = "red"
+                    if red_loops == 2 and i == 1:
+                        await self.highrise.chat(f"🛑 خدعة! ضوء أحمر مجدداً! قف مكاااانك! 🛑")
+                    else:
+                        await self.highrise.chat(f"🔴 ضوء أحمر! قف مكاااانك! 🛑")
+                        
+                    await asyncio.sleep(random.uniform(3.0, 5.0))
+                    if not self.game_active: break
+                    
         except asyncio.CancelledError:
             pass
 
@@ -155,7 +169,7 @@ class MyBot(BaseBot):
 
         if message in self.dance_moves:
             try:
-                await self.highrise.send_emote(self.dance_moves[message])
+                await self.highrise.send_emote(self.dance_moves[message], user.id)
             except Exception as e:
                 print(f"Error dancing: {e}")
             return
@@ -209,7 +223,6 @@ class MyBot(BaseBot):
             elif message == "ابدأ اللعبة":
                 if not self.game_active:
                     self.game_active = True
-                    
                     if self.finish_position.x != 0:
                         try:
                             bot_info = await self.highrise.get_bot_info()
@@ -265,11 +278,12 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
 
 # ---------------------------------------------------------
-# 3️⃣ جزء التشغيل المتوافق تلقائياً مع بيئة إنتاج ريندر (Render Core)
+# 3️⃣ ميزة الفحص المزدوج للأسماء (كبيرة وصغيرة) لضمان القراءة في ريندر
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    TOKEN = os.environ.get("highrise_token")
-    ROOM_ID = os.environ.get("highrise_room_id")
+    # يفحص الحروف الصغيرة أولاً، وإذا لم يجدها يسحب الحروف الكبيرة تلقائياً
+    TOKEN = os.environ.get("highrise_token") or os.environ.get("HIGHRISE_TOKEN")
+    ROOM_ID = os.environ.get("highrise_room_id") or os.environ.get("HIGHRISE_ROOM_ID")
 
     if not TOKEN or not ROOM_ID:
         print("❌ خطأ حرج: لم يتم العثور على المتغيرات السرية المضافة مسبقاً!")
