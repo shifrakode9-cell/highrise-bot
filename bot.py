@@ -1,19 +1,31 @@
 import asyncio
 import random
 from threading import Thread
-from flask import Flask
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
 
-# 🌐 سيرفر الويب لخدعة ريندر و UptimeRobot
-app = Flask('')
+# 🌐 سيرفر ويب مدمج خفيف جداً بديل لـ Flask ولا يحتاج مكتبات خارجية
+class SimpleKeepAliveServer(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write("🤖 البوت يعمل بكفاءة مستمرة ومستقر بدون مكتبات خارجية!".encode("utf-8"))
+        
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
 
-@app.route('/')
-def home():
-    return "🤖 البوت يعمل بكفاءة والخطة المجانية مستقرة!"
+    def log_message(self, format, *args):
+        return # تعطيل لوغات السيرفر الكثيرة لتنظيف الـ Logs
 
-def run_flask():
-    app.run(host='0.0.0.0', port=8080)
+def run_keep_alive():
+    try:
+        server = HTTPServer(('0.0.0.0', 8080), SimpleKeepAliveServer)
+        server.serve_forever()
+    except Exception as e:
+        print(f"⚠️ تنبيه السيرفر المدمج: {e}")
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -26,7 +38,7 @@ class MyBot(BaseBot):
         self.spawn_position = Position(0, 0, 0)
         self.vip_position = Position(0, 0, 0)
         self.finish_position = Position(0, 0, 0)
-        self.bot_fixed_position = Position(0, 0, 0) # مكان البوت المخصص
+        self.bot_fixed_position = Position(0, 0, 0)
         
         # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
@@ -293,11 +305,11 @@ class MyBot(BaseBot):
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29 فقط!")
 
-# 🚀 إقلاع السيرفر وبوت اللعبة معاً
+# 🚀 إقلاع السيرفر وبوت اللعبة معاً بشكل مدمج ومستقر تلقائياً
 if __name__ == "__main__":
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+    server_thread = Thread(target=run_keep_alive)
+    server_thread.daemon = True
+    server_thread.start()
     
     from highrise.__main__ import main
     main()
