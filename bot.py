@@ -1,26 +1,32 @@
 import os
+import sys
+import subprocess
 import asyncio
-from highrise import BaseBot, Position
-from highrise.models import SessionMetadata, User
-from highrise.__main__ import BotDefinition, main
+import warnings
 from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from highrise import BaseBot, Position
+from highrise.models import SessionMetadata, User
 
-# 1. سيرفر ويب بسيط لإرضاء ريندر (لن يغلق التطبيق بعد الآن)
+# 1. إعدادات النظام
+warnings.filterwarnings("ignore")
+
+# 2. السيرفر الداخلي لإرضاء ريندر (يمنع خروج التطبيق مبكراً)
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is running!")
+        self.wfile.write(b"Bot is online")
+    def log_message(self, format, *args): return
 
 def run_server():
     server = HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 8080))), HealthCheck)
     server.serve_forever()
 
-# 2. كلاس البوت
+# 3. كلاس البوت
 class MyBot(BaseBot):
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("✅ البوت متصل الآن بنجاح!")
+        print("✅ البوت متصل بالخادم ويعمل الآن!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if user.username.lower() == "qais29":
@@ -35,16 +41,19 @@ class MyBot(BaseBot):
                     if u.id == user.id:
                         bot_info = await self.highrise.get_bot_info()
                         await self.highrise.teleport(bot_info.user.id, pos)
-                        await self.highrise.chat("🤖 تم تحديث موقع البوت!")
+                        await self.highrise.chat("🤖 تم تحديث موقع البوت بنجاح!")
                         break
 
-# 3. التشغيل المزدوج (السيرفر + البوت)
-if __name__ == "__main__":
-    # تشغيل سيرفر الويب في خلفية (ليظل ريندر سعيداً)
-    Thread(target=run_server, daemon=True).start()
-    
-    # تشغيل البوت
+# 4. تشغيل متزامن وصحيح
+async def start_bot():
     room_id = os.environ.get("ROOM_ID")
     api_key = os.environ.get("API_KEY")
     if room_id and api_key:
-        main([BotDefinition(MyBot(), room_id, api_key)])
+        from highrise.__main__ import BotDefinition, main
+        await main([BotDefinition(MyBot(), room_id, api_key)])
+
+if __name__ == "__main__":
+    # تشغيل السيرفر في الخلفية
+    Thread(target=run_server, daemon=True).start()
+    # تشغيل البوت
+    asyncio.run(start_bot())
