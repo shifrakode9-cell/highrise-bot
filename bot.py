@@ -1,8 +1,38 @@
+import os
+import sys
 import asyncio
 import random
+import threading
+from http.server import SimpleHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User
 
+# لضمان استيراد ملفات المكتبة وتجهيز التشغيل الآلي لريندر
+try:
+    from highrise.__main__ import BotDefinition, main
+except ImportError:
+    pass
+
+# ---------------------------------------------------------
+# 1️⃣ كود السيرفر الوهمي لحل مشكلة إغلاق Render المبكر (Web Service Port)
+# ---------------------------------------------------------
+def run_dummy_server():
+    # سحب البورت الممرر من ريندر أو استخدام 8000 كاحتياطي لربط المنافذ تلقائياً
+    port = int(os.environ.get("PORT", os.environ.get("highrise_room_port", 8000)))
+    try:
+        server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+        print(f"✅ [Render Support] Dummy server is successfully listening on port: {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"⚠️ تنبيه السيرفر الوهمي: {e}")
+
+# تشغيل خيط المعالجة الذكي في الخلفية قبل استدعاء البوت لفتح البورت فوراً
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+
+# ---------------------------------------------------------
+# 2️⃣ كود بوت لعبة Squid Game الكامل والأصلي الخاص بك
+# ---------------------------------------------------------
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
@@ -97,21 +127,8 @@ class MyBot(BaseBot):
                 old_x, old_z = old_pos
                 distance_moved = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
                 if distance_moved > 0.2:
-                    # تسجيل المخالف في قائمة المساجين لمنع حركته
+                    await self.highrise.chat(f"⚠️ المخالف @{user.username} تحرك أثناء الضوء الأحمر! إلى السجن!")
                     self.prisoners.add(username_lower)
-                    await self.highrise.chat(f"⚠️ المخالف @{user.username} تحرك في الأحمر! عقاب الركل الفوري!")
-                    
-                    try:
-                        # البوت ينفذ رقصة الركل (kick)
-                        await self.highrise.send_emote("emote-kick")
-                        # البوت يجبر اللاعب على رقصة السقوط أو التألم (pushed)
-                        await self.highrise.send_emote("emote-pushed", user.id)
-                    except Exception as e:
-                        print(f"Error executing punishment emotes: {e}")
-                    
-                    # ننتظر ثانية واحدة ليرى الجميع تأثير الضربة والسقوط قبل النقل بالسحر
-                    await asyncio.sleep(1.0)
-                    
                     if self.prison_position.x != 0:
                         await self.highrise.teleport(user.id, self.prison_position)
             else:
@@ -120,24 +137,15 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # 🟢 جولة جديدة: الضوء الأخضر دائماً 3 ثوانٍ بناءً على طلبك
                 self.light = "green"
                 await self.highrise.chat(f"🟢 ضوء أخضر! تحركوا بحذر! 🏃‍♂️")
-                await asyncio.sleep(3.0)
+                await asyncio.sleep(random.uniform(3.0, 6.0))
                 
                 if not self.game_active: break
                 
-                # 🔴 الضوء الأحمر الأول
                 self.light = "red"
                 await self.highrise.chat(f"🔴 ضوء أحمر! قف مكاااانك! 🛑")
                 await asyncio.sleep(random.uniform(3.0, 5.0))
-                
-                if not self.game_active: break
-                
-                # 🎲 حيلة ذكية: احتمالية 40% لظهور ضوء أحمر متتالي لإرباك اللاعبين قبل العودة للأخضر
-                if random.random() < 0.40:
-                    await self.highrise.chat(f"🚨 خدعة! ضوء أحمر متتالي!! لا تتحرك! 🛑")
-                    await asyncio.sleep(random.uniform(2.5, 4.0))
         except asyncio.CancelledError:
             pass
 
@@ -203,8 +211,11 @@ class MyBot(BaseBot):
                     self.game_active = True
                     
                     if self.finish_position.x != 0:
-                        bot_info = await self.highrise.get_bot_info()
-                        await self.highrise.teleport(bot_info.user.id, self.finish_position)
+                        try:
+                            bot_info = await self.highrise.get_bot_info()
+                            await self.highrise.teleport(bot_info.user.id, self.finish_position)
+                        except Exception as e:
+                            print(f"Bot teleport error: {e}")
                     
                     self.game_task = asyncio.create_task(self.game_loop())
                     await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! البوت يقف عند خط النهاية ومستعد للتحكيم.")
@@ -252,3 +263,18 @@ class MyBot(BaseBot):
             protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
+
+# ---------------------------------------------------------
+# 3️⃣ جزء التشغيل المتوافق تلقائياً مع بيئة إنتاج ريندر (Render Core)
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    TOKEN = os.environ.get("highrise_token")
+    ROOM_ID = os.environ.get("highrise_room_id")
+
+    if not TOKEN or not ROOM_ID:
+        print("❌ خطأ حرج: لم يتم العثور على المتغيرات السرية المضافة مسبقاً!")
+        sys.exit(1)
+
+    print("🚀 جاري ربط الغرفة والاتصال بالسيرفرات الرسمية للعبة...")
+    definitions = [BotDefinition(MyBot(), ROOM_ID, TOKEN)]
+    asyncio.run(main(definitions))
