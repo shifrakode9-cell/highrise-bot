@@ -1,3 +1,19 @@
+import os
+import sys
+import subprocess
+
+# 📦 خدعة إجبار السيرفر على تحديث المكتبة للإصدار 25.1.0 قبل تشغيل أي شيء
+try:
+    import highrise
+    # إذا كانت النسخة قديمة، نقوم بتحديثها فوراً
+    if hasattr(highrise, '__version__') and not highrise.__version__.startswith('25'):
+        raise ImportError
+except ImportError:
+    print("🔄 جاري تحديث مكتبة HighRise إلى الإصدار المستقر 25.1.0 إجبارياً...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "highrise-bot-sdk==25.1.0"])
+    # إعادة تشغيل السكربت تلقائياً بالنسخة الجديدة
+    os.execv(sys.executable, ['python'] + sys.argv)
+
 import asyncio
 import random
 from threading import Thread
@@ -5,20 +21,20 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
 
-# 🌐 سيرفر ويب مدمج خفيف جداً بديل لـ Flask ولا يحتاج مكتبات خارجية
+# 🌐 سيرفر ويب مدمج خفيف جداً بديل لـ Flask
 class SimpleKeepAliveServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write("🤖 البوت يعمل بكفاءة مستمرة ومستقر بدون مكتبات خارجية!".encode("utf-8"))
+        self.wfile.write("🤖 البوت يعمل بكفاءة مستمرة ومستقر بالإصدار 25!".encode("utf-8"))
         
     def do_HEAD(self):
         self.send_response(200)
         self.end_headers()
 
     def log_message(self, format, *args):
-        return # تعطيل لوغات السيرفر الكثيرة لتنظيف الـ Logs
+        return
 
 def run_keep_alive():
     try:
@@ -60,7 +76,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game الاحترافي جاهز للعمل بكامل ميزاته!")
+        print("🤖 بوت لعبة Squid Game الاحترافي جاهز للعمل بكامل ميزاته الاصدار 25!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if hasattr(position, 'x') and hasattr(position, 'z'):
@@ -197,7 +213,6 @@ class MyBot(BaseBot):
         # 👑 التحكم الحصري للقائد qais29
         if username_lower == "qais29":
             
-            # أمر تثبيت مكان وقوف البوت المستقر والمعدل
             if message == "/setbotpos":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -305,7 +320,6 @@ class MyBot(BaseBot):
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29 فقط!")
 
-# 🚀 إقلاع السيرفر وبوت اللعبة معاً بشكل مدمج ومستقر تلقائياً
 if __name__ == "__main__":
     server_thread = Thread(target=run_keep_alive)
     server_thread.daemon = True
