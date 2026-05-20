@@ -1,7 +1,19 @@
 import asyncio
 import random
+from threading import Thread
+from flask import Flask
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
+
+# 🌐 إنشاء سيرفر ويب مصغر لخدعة ريندر و UptimeRobot
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "🤖 البوت يعمل بكفاءة والخطة المجانية مستقرة!"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=8080)
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -46,7 +58,6 @@ class MyBot(BaseBot):
 
         if username_lower == "qais29":
             await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الترسانة الذكية والغرفة تحت تصرفك.")
-            # إذا كان موقع البوت محدد، يذهب إليه فوراً عند دخول أي لاعب لضمان ثباته
             if self.bot_fixed_position.x != 0:
                 await self.highrise.teleport(session_metadata.user_id if hasattr(session_metadata, 'user_id') else user.id, self.bot_fixed_position)
             return
@@ -89,7 +100,6 @@ class MyBot(BaseBot):
         if username_lower == "qais29":
             return
 
-        # 1️⃣ فحص خط نهاية الأمان والفوز تلقائياً
         if self.game_active and self.finish_position.x != 0 and username_lower not in self.prisoners:
             distance_to_finish = ((current_x - self.finish_position.x)**2 + (current_z - self.finish_position.z)**2)**0.5
             if distance_to_finish < 1.2:
@@ -98,7 +108,6 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(user.id, self.vip_position)
                 return
 
-        # 2️⃣ حماية منطقة الـ VIP تلقائياً
         if self.vip_position.x != 0 and username_lower not in self.prisoners:
             distance_to_vip = ((current_x - self.vip_position.x)**2 + (current_z - self.vip_position.z)**2)**0.5
             if distance_to_vip < 1.5:
@@ -107,7 +116,6 @@ class MyBot(BaseBot):
                 await self.highrise.teleport(user.id, self.prison_position)
                 return
 
-        # مراقبة الحركة أثناء الضوء الأحمر
         if not self.game_active or self.light == "green":
             self.player_positions[user.id] = (current_x, current_z)
             return
@@ -144,14 +152,12 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # 🟢 الضوء الأخضر: 3 ثوانٍ ثابتة
                 self.light = "green"
                 await self.highrise.chat("🟢 ضوء أخضر! تحركوا بسرعة وبحذر! 🏃‍♂️")
                 await asyncio.sleep(3.0)
                 
                 if not self.game_active: break
                 
-                # 🔴 الضوء الأحمر
                 self.light = "red"
                 await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
                 await asyncio.sleep(random.uniform(2.0, 4.5))
@@ -179,7 +185,6 @@ class MyBot(BaseBot):
 
         if username_lower == "qais29":
             
-            # الأمر الجديد لتحديد مكان ثابت ومحدد للبوت ليراه الجميع
             if message == "/setbotpos":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -287,3 +292,13 @@ class MyBot(BaseBot):
             protected_commands = ["/setbotpos", "/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29 فقط!")
+
+# 🚀 تشغيل سيرفر الويب في الخلفية قبل تشغيل البوت الأساسي
+if __name__ == "__main__":
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # تشغيل البوت المطور
+    from highrise.__main__ import main
+    main()
