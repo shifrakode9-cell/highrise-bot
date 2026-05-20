@@ -1,7 +1,10 @@
 import asyncio
 import random
+import os
+import sys
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User
+from highrise.__main__ import main
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -100,14 +103,14 @@ class MyBot(BaseBot):
                     self.prisoners.add(username_lower)
                     await self.highrise.chat(f"💥 البوت يركل المخالف @{user.username} لتحركه في الضوء الأحمر!")
                     
-                    # 💥 جعل البوت ينفذ رقصة الركل وجعل اللاعب يسقط ويتألم
+                    # تنفيذ الركلة وإجبار اللاعب المخالف على السقوط أرضاً
                     try:
-                        await self.highrise.send_emote("emote-kick") # البوت يركل
-                        await self.highrise.send_emote("emote-pushed", user.id) # اللاعب يسقط أرضاً
+                        await self.highrise.send_emote("emote-kick")
+                        await self.highrise.send_emote("emote-pushed", user.id)
                     except:
                         pass
                     
-                    # انتظار ثانيتين ليرى الجميع السقوط ثم نقله للسجن
+                    # انتظار ثانيتين ليرى الجميع حركة السقوط ثم نقله للسجن
                     await asyncio.sleep(2.0)
                     if self.prison_position.x != 0:
                         await self.highrise.teleport(user.id, self.prison_position)
@@ -117,7 +120,7 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # الجولة تبدأ دائماً بضوء أخضر مدته 3 ثوانٍ ثابتة بناءً على طلبك
+                # الجولة تبدأ دائماً بضوء أخضر مدته 3 ثوانٍ ثابتة
                 self.light = "green"
                 await self.highrise.chat(f"🟢 ضوء أخضر! تحركوا بحذر! (3 ثوانٍ) 🏃‍♂️")
                 await asyncio.sleep(3.0)
@@ -131,9 +134,8 @@ class MyBot(BaseBot):
 
                 if not self.game_active: break
 
-                # 🎲 نظام الاحتمالات: فرصة 40% لظهور ضوء أحمر مباغت مرة أخرى وراء بعض!
+                # نظام الاحتمالات: فرصة 40% لظهور ضوء أحمر مباغت مرة أخرى وراء بعض!
                 if random.random() < 0.40:
-                    # نبه اللاعبين بخدعة ذكية
                     self.light = "green"
                     await self.highrise.chat(f"🟢 ضوء أخضر سريع... امزح معكم!! 🔴 ضوء أحمر مجدداً قف مكانك! 🛑")
                     self.light = "red"
@@ -255,3 +257,17 @@ class MyBot(BaseBot):
             protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
+
+# =======================================================
+# ⚙️ جزء التشغيل السحابي لمنصات الاستضافة (مثل Render)
+# =======================================================
+if __name__ == "__main__":
+    # استدعاء المعطيات من إعدادات البيئة في ريندر، أو استخدام القيم المكتوبة هنا بالأسفل تلقائياً
+    room_id = os.environ.get("ROOM_ID", "اكتب_هنا_آيدي_الغرفة")
+    api_token = os.environ.get("API_TOKEN", "اكتب_هنا_التوكن")
+    
+    definitions = "bot:MyBot"
+    sys.argv = ["highrise", definitions, room_id, api_token]
+    
+    print("🚀 جاري ربط الكود وتوصيله بسيرفرات Highrise...")
+    main()
