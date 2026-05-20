@@ -278,16 +278,12 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
 
 # ---------------------------------------------------------
-# 3️⃣ ميزة الفحص المزدوج للأسماء (كبيرة وصغيرة) لضمان القراءة في ريندر
+# 3️⃣ التشغيل المباشر بالبيانات المدمجة لحل خطأ الـ API المفقود
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    # يفحص الحروف الصغيرة أولاً، وإذا لم يجدها يسحب الحروف الكبيرة تلقائياً
-    TOKEN = os.environ.get("highrise_token") or os.environ.get("HIGHRISE_TOKEN")
-    ROOM_ID = os.environ.get("highrise_room_id") or os.environ.get("HIGHRISE_ROOM_ID")
-
-    if not TOKEN or not ROOM_ID:
-        print("❌ خطأ حرج: لم يتم العثور على المتغيرات السرية المضافة مسبقاً!")
-        sys.exit(1)
+    # تم وضع المفاتيح هنا مباشرة لضمان الاتصال بنسبة 100%
+    TOKEN = "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
+    ROOM_ID = "663fdca136f32ee78399e525"
 
     print("🚀 جاري ربط الغرفة والاتصال بالسيرفرات الرسمية للعبة...")
     definitions = [BotDefinition(MyBot(), ROOM_ID, TOKEN)]
