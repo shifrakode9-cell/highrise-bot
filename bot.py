@@ -13,11 +13,12 @@ class MyBot(BaseBot):
         self.prison_position = Position(0, 0, 0)
         self.spawn_position = Position(0, 0, 0)
         self.vip_position = Position(0, 0, 0)
+        self.finish_position = Position(0, 0, 0)  # خط نهاية الأمان
         
         # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
         self.prisoners = set()
-        self.game_task = None  # للحفاظ على حلقة اللعبة التلقائية مستقرة
+        self.game_task = None
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
         print("🤖 بوت لعبة Squid Game الآلي يعمل بأعلى كفاءة واستقرار!")
@@ -28,7 +29,11 @@ class MyBot(BaseBot):
         
         username_lower = user.username.lower()
 
-        # 🚨 مكافحة الاحتيال والهروب
+        # خطة الأمان: التعرف على القائد qais29 فوراً
+        if username_lower == "qais29":
+            await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الغرفة تحت تصرفك الآن.")
+            return
+
         if username_lower in self.prisoners:
             await self.highrise.chat(f"👮‍♂️ قف مكانك يا @{user.username}! لقد حاولت الهروب، عد إلى السجن!")
             if self.prison_position.x != 0:
@@ -36,7 +41,6 @@ class MyBot(BaseBot):
                 await self.highrise.teleport(user.id, self.prison_position)
             return
 
-        # 📣 الترحيب الفريد
         await self.highrise.chat(f"🤖 أهلاً بك @{user.username} في اللعبة.. تذكر: تحركك في الضوء الأحمر يعني نهايتك! 🛑")
 
     async def on_user_move(self, user: User, pos: Position) -> None:
@@ -48,11 +52,24 @@ class MyBot(BaseBot):
 
         username_lower = user.username.lower()
 
-        # 🛡️ حماية منطقة الـ VIP تلقائياً (تجنب سجن القائد أو الضيوف المسموح لهم)
-        if self.vip_position.x != 0 and username_lower != "qais29" and username_lower not in self.prisoners:
-            # حساب المسافة بين اللاعب ومنصة الـ VIP
+        # حماية القائد من السجن والقيود
+        if username_lower == "qais29":
+            return
+
+        # 1️⃣ فحص إذا وصل اللاعب إلى خط نهاية الأمان والفوز تلقائياً
+        if self.game_active and self.finish_position.x != 0 and username_lower not in self.prisoners:
+            distance_to_finish = ((current_x - self.finish_position.x)**2 + (current_z - self.finish_position.z)**2)**0.5
+            if distance_to_finish < 1.2:  # إذا داس على خط النهاية
+                await self.highrise.chat(f"🎉 مبروك للفائز الأسطوري @{user.username}! لقد وصل إلى خط الأمان بنجاح! 🏆")
+                # نقله تلقائياً لمنصة الـ VIP مكافأة له ولإخلاء الساحة لغيره
+                if self.vip_position.x != 0:
+                    await self.highrise.teleport(user.id, self.vip_position)
+                return
+
+        # 2️⃣ حماية منطقة الـ VIP تلقائياً من المتسللين العاديين
+        if self.vip_position.x != 0 and username_lower not in self.prisoners:
             distance_to_vip = ((current_x - self.vip_position.x)**2 + (current_z - self.vip_position.z)**2)**0.5
-            if distance_to_vip < 1.5:  # إذا اقترب جداً أو دخل منطقة الـ VIP
+            if distance_to_vip < 1.5:
                 await self.highrise.chat(f"🚨 ممنوع الاحتيال يا @{user.username}! منطقة الـ VIP محظورة، إلى السجن!")
                 self.prisoners.add(username_lower)
                 await self.highrise.teleport(user.id, self.prison_position)
@@ -63,39 +80,30 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        if self.light == "red" and username_lower != "qais29":
+        if self.light == "red":
             old_pos = self.player_positions.get(user.id)
             if old_pos:
                 old_x, old_z = old_pos
                 distance_moved = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                
-                # يتجاهل حركات الأفاتار التلقائية (يد ورجل) ولا يحسب إلا المشي الفعلي
                 if distance_moved > 0.2:
                     await self.highrise.chat(f"⚠️ المخالف @{user.username} تحرك أثناء الضوء الأحمر! إلى السجن!")
                     self.prisoners.add(username_lower)
                     if self.prison_position.x != 0:
                         await self.highrise.teleport(user.id, self.prison_position)
-                else:
-                    pass
             else:
                 self.player_positions[user.id] = (current_x, current_z)
 
     async def game_loop(self):
-        """حلقة ذكية لإدارة اللعبة تلقائياً بأوقات عشوائية دون خروج البوت"""
         try:
             while self.game_active:
-                # 🟢 الضوء الأخضر
                 self.light = "green"
                 await self.highrise.chat(f"🟢 ضوء أخضر! تحركوا بحذر! 🏃‍♂️")
-                # البوت ينتظر وقت عشوائي بين 3 إلى 6 ثوانٍ والضوء أخضر
                 await asyncio.sleep(random.uniform(3.0, 6.0))
                 
                 if not self.game_active: break
                 
-                # 🔴 الضوء الأحمر
                 self.light = "red"
                 await self.highrise.chat(f"🔴 ضوء أحمر! قف مكاااانك! 🛑")
-                # البوت ينتظر وقت عشوائي بين 3 إلى 5 ثوانٍ والضوء أحمر لمعاقبة التحركات
                 await asyncio.sleep(random.uniform(3.0, 5.0))
         except asyncio.CancelledError:
             pass
@@ -104,10 +112,9 @@ class MyBot(BaseBot):
         message = message.strip().lower()
         username_lower = user.username.lower()
 
-        # 🔒 التحكم الكامل حصري لـ qais29 فقط
+        # التحكم حصري لـ qais29 فقط
         if username_lower == "qais29":
             
-            # ضبط موقع السجن
             if message == "/setprison":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -116,7 +123,6 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🔒 تم تسجيل موقع السجن الحالي بنجاح!")
                         break
             
-            # ضبط خط البداية
             elif message == "/setspawn":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -125,7 +131,6 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🟩 تم تسجيل خط الانطلاق بنجاح!")
                         break
 
-            # ضبط منصة الـ VIP الخاصة بك
             elif message == "/setvip":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -134,31 +139,43 @@ class MyBot(BaseBot):
                         await self.highrise.chat("💎 تم تحديد منصة الـ VIP الخاصة بك وحمايتها!")
                         break
 
-            # أمر نسخ اللباس
+            # الأمر الجديد لضبط خط نهاية الأمان
+            elif message == "/setfinish":
+                room_users = await self.highrise.get_room_users()
+                for u, pos in room_users.content:
+                    if u.id == user.id and isinstance(pos, Position):
+                        self.finish_position = pos
+                        await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان! البوت سيتعرف على الفائزين تلقائياً.")
+                        break
+
             elif message == "نسخ اللباس":
                 try:
-                    user_info = await self.highrise.get_user_info(user.id)
-                    await self.highrise.set_outfit(user_info.user.outfit)
-                    await self.highrise.chat("👕 تم نسخ لباسك وارتداؤه بنجاح يا قائد!")
+                    room_users = await self.highrise.get_room_users()
+                    user_outfit = None
+                    for u, pos in room_users.content:
+                        if u.id == user.id:
+                            user_outfit = u.outfit
+                            break
+                    if user_outfit:
+                        await self.highrise.set_outfit(user_outfit)
+                        await self.highrise.chat("👕 تم نسخ لباسك وارتداؤه بنجاح يا قائد!")
+                    else:
+                        await self.highrise.chat("تعذر قراءة تفاصيل لباسك الحالي.")
                 except Exception as e:
                     print(f"Error copying outfit: {e}")
 
-            # أمر بدء اللعبة التلقائي الذكي
             elif message == "ابدأ اللعبة":
                 if not self.game_active:
                     self.game_active = True
-                    # نقل البوت تلقائياً إلى مكان وقوفك الحالي (عند الدمية/خط النهاية) ليراقب اللاعبين
                     room_users = await self.highrise.get_room_users()
                     for u, pos in room_users.content:
                         if u.id == user.id and isinstance(pos, Position):
                             bot_info = await self.highrise.get_bot_info()
                             await self.highrise.teleport(bot_info.user.id, pos)
                             break
-                    # تشغيل الإدارة الآلية في الخلفية بشكل مستقر
                     self.game_task = asyncio.create_task(self.game_loop())
                     await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية للمسابقة! البوت يتولى القيادة الآن.")
 
-            # أمر إيقاف اللعبة تماماً
             elif message == "اوقف اللعبة":
                 if self.game_active:
                     self.game_active = False
@@ -167,7 +184,6 @@ class MyBot(BaseBot):
                         self.game_task.cancel()
                     await self.highrise.chat("🛑 تم إيقاف اللعبة وإلغاء الإدارة التلقائية.")
 
-            # أمر نقل أي شخص لـ VIP عند نسخ اسمه
             elif message.startswith("vip"):
                 parts = message.split()
                 if len(parts) > 1 and self.vip_position.x != 0:
@@ -183,7 +199,6 @@ class MyBot(BaseBot):
                     if not found:
                         await self.highrise.chat("تعذر العثور على هذا اللاعب في الغرفة.")
 
-            # أمر الإفراج وإعادة اللاعب لخط البداية
             elif message.startswith("افراج"):
                 parts = message.split()
                 if len(parts) > 1:
@@ -201,7 +216,6 @@ class MyBot(BaseBot):
                         await self.highrise.chat("هذا اللاعب ليس في السجن أصلاً.")
                         
         else:
-            # منع اللاعبين من استخدام أوامرك
-            protected_commands = ["/setprison", "/setspawn", "/setvip", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
+            protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
