@@ -259,15 +259,15 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29!")
 
 # =======================================================
-# ⚙️ جزء التشغيل السحابي لمنصات الاستضافة (مثل Render)
+# ⚙️ جزء التشغيل السحابي المحدث لمنصة Render
 # =======================================================
 if __name__ == "__main__":
-    # استدعاء المعطيات من إعدادات البيئة في ريندر، أو استخدام القيم المكتوبة هنا بالأسفل تلقائياً
     room_id = os.environ.get("ROOM_ID", "اكتب_هنا_آيدي_الغرفة")
     api_token = os.environ.get("API_TOKEN", "اكتب_هنا_التوكن")
     
     definitions = "bot:MyBot"
-    sys.argv = ["highrise", definitions, room_id, api_token]
     
     print("🚀 جاري ربط الكود وتوصيله بسيرفرات Highrise...")
-    main()
+    
+    # تم الإصلاح هنا لتمرير الحجج مباشرة لـ main تفادياً لأي أخطاء نوعية (TypeError)
+    main(definitions, room_id, api_token)
