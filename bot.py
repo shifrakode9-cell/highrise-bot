@@ -298,4 +298,22 @@ class MyBot(BaseBot):
                                     break
                     else: await self.highrise.chat("هذا اللاعب ليس في قائمة المساجين حالياً.")
         else:
-            protected_commands =
+            protected_commands = ["/setbotpos", "/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
+            if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
+                await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر حصرية للقائد qais29 فقط!")
+
+# 🚀 إقلاع السيرفر وتشغيل البوت بالإصدار 25 تلقائياً
+if __name__ == "__main__":
+    server_thread = Thread(target=run_keep_alive)
+    server_thread.daemon = True
+    server_thread.start()
+    
+    room_id = os.environ.get("ROOM_ID")
+    api_key = os.environ.get("API_KEY")
+    
+    if not room_id or not api_key:
+        print("⚠️ خطأ: تأكد من إضافة ROOM_ID و API_KEY في إعدادات ريندر!")
+    else:
+        from highrise.__main__ import BotDefinition, main
+        definitions = [BotDefinition(MyBot(), room_id, api_key)]
+        main(definitions)
