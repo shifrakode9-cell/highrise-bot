@@ -56,10 +56,15 @@ class MyBot(BaseBot):
         
         username_lower = user.username.lower()
 
+        # 👑 التعرف التلقائي على القائد الأعلى (تم تعديلها لتشمل الحروف الكبيرة والصغيرة بشكل مضمون)
         if username_lower == "qais29":
             await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الترسانة الذكية والغرفة تحت تصرفك.")
             if self.bot_fixed_position.x != 0:
-                await self.highrise.teleport(session_metadata.user_id if hasattr(session_metadata, 'user_id') else user.id, self.bot_fixed_position)
+                try:
+                    bot_info = await self.highrise.get_bot_info()
+                    await self.highrise.teleport(bot_info.user.id, self.bot_fixed_position)
+                except:
+                    pass
             return
 
         if username_lower in self.prisoners:
@@ -183,16 +188,17 @@ class MyBot(BaseBot):
                 print(f"Error dancing: {e}")
             return
 
+        # 👑 فحص صلاحيات الأوامر (تأكيد الحروف الصغيرة لاسمك)
         if username_lower == "qais29":
             
             if message == "/setbotpos":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
                     if u.id == user.id and isinstance(pos, Position):
-                        self.bot_fixed_position = pos
+                        # حفظ الموقع بجميع محاوره بدقة
+                        self.bot_fixed_position = Position(pos.x, pos.y, pos.z, "FrontRight")
                         bot_info = await self.highrise.get_bot_info()
-                        await self.highrise.teleport(bot_info.user.id, pos)
-                        await self.highrise.walk_to(Position(pos.x, pos.y, pos.z, "FrontRight"))
+                        await self.highrise.teleport(bot_info.user.id, self.bot_fixed_position)
                         await self.highrise.chat("🤖 تم تثبيت موقع وقوف البوت الجديد بنجاح!")
                         break
 
@@ -244,7 +250,7 @@ class MyBot(BaseBot):
                 if not self.game_active:
                     self.game_active = True
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! البوت في مكانه المحدد مستعد للتحكيم والمراقبة.")
+                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! البوت في مكانه المحدد مستعد للتحكيم والمراق.")
 
             elif message == "اوقف اللعبة":
                 if self.game_active:
@@ -299,6 +305,5 @@ if __name__ == "__main__":
     flask_thread.daemon = True
     flask_thread.start()
     
-    # تشغيل البوت المطور
     from highrise.__main__ import main
     main()
