@@ -1,2 +1,2 @@
-highrise-bot-sdk==25.1.0
-asyncio
+highrise-bot-sdk
+flask
