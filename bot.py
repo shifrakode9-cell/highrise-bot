@@ -5,7 +5,7 @@ import random
 import threading
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 
-# إضافة مسار البيئة الوهمية لتفادي مشكلة ModuleNotFoundError نهائياً
+# إضافة مسارات البيئة الوهمية لتفادي أي نقص
 venv_path = os.path.join(os.path.dirname(__file__), '.venv', 'lib', 'python3.10', 'site-packages')
 if os.path.exists(venv_path) and venv_path not in sys.path:
     sys.path.append(venv_path)
@@ -13,15 +13,14 @@ if os.path.exists(venv_path) and venv_path not in sys.path:
 try:
     from highrise import BaseBot, Position
     from highrise.models import SessionMetadata, User
-    from highrise.__main__ import main as run_highrise_cli
+    from highrise.__main__ import BotDefinition, main as run_highrise_cli
 except ModuleNotFoundError:
-    # محاولة مسار بديل إذا اختلف مسار المجلدات في السيرفر
     alt_path = "/opt/render/project/src/.venv/lib/python3.10/site-packages"
     if alt_path not in sys.path:
         sys.path.append(alt_path)
     from highrise import BaseBot, Position
     from highrise.models import SessionMetadata, User
-    from highrise.__main__ import main as run_highrise_cli
+    from highrise.__main__ import BotDefinition, main as run_highrise_cli
 
 # ---------------------------------------------------------
 # كود السيرفر الوهمي للبقاء حياً على سيرفر Render
@@ -35,7 +34,6 @@ def run_dummy_server():
     except Exception as e:
         print(f"⚠️ Dummy server alert: {e}")
 
-# تشغيل السيرفر في الخلفية فوراً
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # ---------------------------------------------------------
@@ -174,13 +172,13 @@ class Bot(BaseBot):
             if message in ["/setprison", "/setspawn", "ابدأ اللعبة", "اوقف اللعبة"]:
                 await self.highrise.chat(f"❌ هذا الأمر خاص بالقائد qais29!")
 
-# تشغيل نظام الـ CLI للمكتبة برمجياً لتجنب مشاكل التشغيل من السيرفر مباشرة
+# التشغيل المباشر عبر إرسال الـ definitions المطلوبة رسمياً للمكتبة
 if __name__ == "__main__":
-    # تجهيز مدخلات التشغيل وكأنها كُتبت في مبنى الأوامر
-    sys.argv = [
-        "highrise-bot", 
-        "bot:Bot", 
-        "663fdca136f32ee78399e525", 
-        "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
-    ]
-    run_highrise_cli()
+    TOKEN = "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
+    ROOM_ID = "663fdca136f32ee78399e525"
+    
+    # تجهيز التعريف المطلوب للدالة برمجياً
+    bot_definitions = [BotDefinition(Bot(), ROOM_ID, TOKEN)]
+    
+    print("🚀 جاري الاتصال المباشر بالسيرفرات الرسمية...")
+    run_highrise_cli(bot_definitions)
