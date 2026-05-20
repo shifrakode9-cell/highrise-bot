@@ -2,7 +2,7 @@ import os
 import sys
 import subprocess
 
-# 📦 إجبار السيرفر على تحديث المكتبة للإصدار 25.1.0 قبل تشغيل أي شيء لضمان عدم الطرد
+# 📦 إجبار السيرفر على تحديث المكتبة للإصدار 25.1.0 لضمان عدم الطرد
 try:
     import highrise
     if hasattr(highrise, '__version__') and not highrise.__version__.startswith('25'):
@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
 
-# 🌐 سيرفر ويب مدمج خفيف جداً بديل لـ Flask للحفاظ على استقرار البوت 24 ساعة
+# 🌐 سيرفر ويب مدمج للحفاظ على استقرار البوت 24 ساعة ومنع توقفه
 class SimpleKeepAliveServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -32,7 +32,7 @@ class SimpleKeepAliveServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        return  # تعطيل اللوغات الزائدة لتنظيف شاشة ريندر
+        return
 
 def run_keep_alive():
     try:
@@ -47,19 +47,18 @@ class MyBot(BaseBot):
         self.game_active = False
         self.light = "red"
         
-        # إحداثيات المواقع الأساسية (يتم تحديدها من الغرفة)
+        # إحداثيات المواقع الأساسية
         self.prison_position = Position(0, 0, 0)
         self.spawn_position = Position(0, 0, 0)
         self.vip_position = Position(0, 0, 0)
         self.finish_position = Position(0, 0, 0)
         self.bot_fixed_position = Position(0, 0, 0)
         
-        # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
         self.prisoners = set()
         self.game_task = None
 
-        # قائمة الـ 10 رقصات السريعة بالرقم
+        # قائمة الـ 10 رقصات
         self.dance_moves = {
             "1": "dance-tiktok8",
             "2": "dance-russian",
@@ -82,7 +81,6 @@ class MyBot(BaseBot):
         
         username_lower = user.username.lower()
 
-        # 👑 تحية مخصصة ومضمونة للقائد عند الدخول
         if username_lower == "qais29":
             await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الترسانة الذكية والغرفة تحت تصرفك.")
             return
@@ -102,7 +100,6 @@ class MyBot(BaseBot):
             gold_amount = item.amount
             print(f"💰 تبرع جديد: اللاعب @{sender.username} دفع {gold_amount} جولد.")
             
-            # دفع 5 جولد للإفراج التلقائي
             if gold_amount == 5:
                 if username_lower in self.prisoners:
                     self.prisoners.remove(username_lower)
@@ -111,7 +108,7 @@ class MyBot(BaseBot):
                         await asyncio.sleep(1.0)
                         await self.highrise.teleport(sender.id, self.spawn_position)
                 else:
-                    await self.highrise.chat(f"❤️ شكراً لك يا @{sender.username} على دعم الغرفة بـ 5 جولد! (أنت لست مسجوناً لكننا نشكر كرمك!)")
+                    await self.highrise.chat(f"❤️ شكراً لك يا @{sender.username} على دعم الغرفة بـ 5 جولد!")
             else:
                 await self.highrise.chat(f"💎 شكراً جزيلاً لـ @{sender.username} على تقديم دعم بقيمة {gold_amount} جولد للغرفة! 🔥")
 
@@ -126,7 +123,6 @@ class MyBot(BaseBot):
         if username_lower == "qais29":
             return
 
-        # التحقق من خط النهاية والفوز للتحكيم الآلي
         if self.game_active and self.finish_position.x != 0 and username_lower not in self.prisoners:
             distance_to_finish = ((current_x - self.finish_position.x)**2 + (current_z - self.finish_position.z)**2)**0.5
             if distance_to_finish < 1.2:
@@ -135,7 +131,6 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(user.id, self.vip_position)
                 return
 
-        # حظر دخول منطقة الـ VIP لغير الضيوف والقائد واستهداف المخالف بالسجن والدروب
         if self.vip_position.x != 0 and username_lower not in self.prisoners:
             distance_to_vip = ((current_x - self.vip_position.x)**2 + (current_z - self.vip_position.z)**2)**0.5
             if distance_to_vip < 1.5:
@@ -148,7 +143,6 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        # نظام كشف الحركة الصارم في الضوء الأحمر مع الضرب والدروب والسجن
         if self.light == "red":
             old_pos = self.player_positions.get(user.id)
             if old_pos:
@@ -158,20 +152,15 @@ class MyBot(BaseBot):
                 if distance_moved > 0.2:
                     self.prisoners.add(username_lower)
                     await self.highrise.chat(f"🚨🚨 المخالف @{user.username} تحرك في الأحمر! تصفية فورية! 💥🥊")
-                    
                     try:
                         await self.highrise.send_emote("emote-superpunch")
                     except:
-                        try:
-                            await self.highrise.send_emote("emote-punch")
-                        except:
-                            pass
-                    
+                        try: await self.highrise.send_emote("emote-punch")
+                        except: pass
                     try:
                         await self.highrise.send_emote("dance-drop", user.id)
                     except:
                         pass
-                    
                     await asyncio.sleep(1.0)
                     if self.prison_position.x != 0:
                         await self.highrise.teleport(user.id, self.prison_position)
@@ -184,21 +173,17 @@ class MyBot(BaseBot):
                 self.light = "green"
                 await self.highrise.chat("🟢 ضوء أخضر! تحركوا بسرعة وبحذر! 🏃‍♂️")
                 await asyncio.sleep(3.0)
-                
                 if not self.game_active: break
                 
                 self.light = "red"
                 await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
                 await asyncio.sleep(random.uniform(2.0, 4.5))
-                
                 if not self.game_active: break
                 
-                # خدعة ذكية للأضواء العشوائية بنسبة 40% لزيادة الحماس والتحدي
                 if random.random() < 0.40:
                     self.light = "red"
                     await self.highrise.chat("🚨 خددددعة! أحمر مجدداً! قف مكانك لا تتحرك! 🔴🛑")
                     await asyncio.sleep(random.uniform(1.5, 3.5))
-                    
         except asyncio.CancelledError:
             pass
 
@@ -206,7 +191,6 @@ class MyBot(BaseBot):
         message = message.strip().lower()
         username_lower = user.username.lower()
 
-        # تشغيل الـ 10 رقصات لجميع اللاعبين تلقائياً بالرقم
         if message in self.dance_moves:
             try:
                 await self.highrise.send_emote(self.dance_moves[message])
@@ -214,10 +198,7 @@ class MyBot(BaseBot):
                 print(f"Error dancing: {e}")
             return
 
-        # 👑 التحكم الحصري والكامل للقائد qais29
         if username_lower == "qais29":
-            
-            # أمر تثبيت مكان البوت الحالي المطور
             if message == "/setbotpos":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -270,7 +251,7 @@ class MyBot(BaseBot):
                             break
                 except Exception as e:
                     print(f"Error copying outfit: {e}")
-                    await self.highrise.chat("⚠️ عذراً يا قائد، واجهت مشكلة في قراءة خزانة الملابس.")
+                    await self.highrise.chat("⚠️ واجهت مشكلة في قراءة خزانة الملابس.")
 
             elif message == "ابدأ اللعبة":
                 if not self.game_active:
@@ -279,4 +260,42 @@ class MyBot(BaseBot):
                     await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! البوت مستعد للمراقبة والتحكيم.")
 
             elif message == "اوقف اللعبة":
-                if
+                if self.game_active:
+                    self.game_active = False
+                    self.light = "red"
+                    if self.game_task: self.game_task.cancel()
+                    await self.highrise.chat("🛑 تم إيقاف اللعبة بنجاح.")
+
+            elif message.startswith("vip"):
+                parts = message.split()
+                if len(parts) == 1 and self.vip_position.x != 0:
+                    await self.highrise.teleport(user.id, self.vip_position)
+                    await self.highrise.chat(f"👑 مرحباً بك في منصتك الخاصة يا قائد @{user.username}!")
+                elif len(parts) > 1 and self.vip_position.x != 0:
+                    target_username = parts[1].replace("@", "").lower()
+                    room_users = await self.highrise.get_room_users()
+                    found = False
+                    for u, pos in room_users.content:
+                        if u.username.lower() == target_username:
+                            await self.highrise.teleport(u.id, self.vip_position)
+                            await self.highrise.chat(f"👑 تم نقل الضيف @{u.username} إلى منصة الـ VIP بنجاح.")
+                            found = True
+                            break
+                    if not found: await self.highrise.chat("تعذر العثور على هذا اللاعب في الغرفة.")
+
+            elif message.startswith("افراج"):
+                parts = message.split()
+                if len(parts) > 1:
+                    target_username = parts[1].replace("@", "").lower()
+                    if target_username in self.prisoners:
+                        self.prisoners.remove(target_username)
+                        await self.highrise.chat(f"🕊️ تم العفو اليدوي عن @{target_username} والعودة للعب!")
+                        if self.spawn_position.x != 0:
+                            room_users = await self.highrise.get_room_users()
+                            for u, pos in room_users.content:
+                                if u.username.lower() == target_username:
+                                    await self.highrise.teleport(u.id, self.spawn_position)
+                                    break
+                    else: await self.highrise.chat("هذا اللاعب ليس في قائمة المساجين حالياً.")
+        else:
+            protected_commands =
