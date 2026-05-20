@@ -48,7 +48,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game الاحترافي جاهز للعمل بكامل ميزاته الغدارة والتجارية!")
+        print("🤖 بوت لعبة Squid Game الاحترافي جاهز للعمل بكامل ميزاته!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if hasattr(position, 'x') and hasattr(position, 'z'):
@@ -56,7 +56,7 @@ class MyBot(BaseBot):
         
         username_lower = user.username.lower()
 
-        # 👑 ترحيب مضمون بالقائد
+        # 👑 تحية مخصصة ومضمونة للقائد عند الدخول
         if username_lower == "qais29":
             await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الترسانة الذكية والغرفة تحت تصرفك.")
             return
@@ -182,10 +182,10 @@ class MyBot(BaseBot):
                 print(f"Error dancing: {e}")
             return
 
-        # 👑 أوامر القائد qais29
+        # 👑 التحكم الحصري للقائد qais29
         if username_lower == "qais29":
             
-            # أمر تثبيت مكان وقوف البوت المعدل والمضمون
+            # أمر تثبيت مكان وقوف البوت المستقر والمعدل
             if message == "/setbotpos":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -293,7 +293,7 @@ class MyBot(BaseBot):
             if message in protected_commands or message.startswith("vip") or message.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للقائد qais29 فقط!")
 
-# 🚀 تشغيل السيرفر والبوت
+# 🚀 إقلاع السيرفر وبوت اللعبة معاً
 if __name__ == "__main__":
     flask_thread = Thread(target=run_flask)
     flask_thread.daemon = True
