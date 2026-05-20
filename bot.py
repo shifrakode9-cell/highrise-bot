@@ -7,11 +7,6 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User
 
-try:
-    from highrise.__main__ import BotDefinition, main
-except ImportError:
-    pass
-
 # ---------------------------------------------------------
 # كود السيرفر الوهمي للبقاء حياً على سيرفر Render المجاني
 # ---------------------------------------------------------
@@ -28,7 +23,7 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 
 
 # ---------------------------------------------------------
-# بوت لعبة Squid Game الآلي
+# بوت لعبة Squid Game الآلي المطور
 # ---------------------------------------------------------
 class MyBot(BaseBot):
     def __init__(self):
@@ -50,7 +45,8 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game الآلي جاهز ومستقر الآن في الغرفة!")
+        print("🤖 بوت لعبة Squid Game الآلي دخل الغرفة وجاهز تماماً!")
+        await self.highrise.chat("🤖 تم تشغيل نظام Squid Game المطور! أهلاً بالجميع.")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if hasattr(position, 'x') and hasattr(position, 'z'):
@@ -107,14 +103,23 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
+                # 🟢 الضوء الأخضر
                 self.light = "green"
-                await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر!")
+                await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! 🏃‍♂️")
                 await asyncio.sleep(random.uniform(3.0, 6.0))
                 if not self.game_active: break
                 
-                self.light = "red"
-                await self.highrise.chat("🔴 ضوء أحمر! قف مكانك! 🛑")
-                await asyncio.sleep(random.uniform(3.0, 5.0))
+                # 🛑 الضوء الأحمر العشوائي المتكرر (حسب طلبك)
+                red_loops = random.choice([1, 2])
+                for i in range(red_loops):
+                    self.light = "red"
+                    if red_loops == 2 and i == 1:
+                        await self.highrise.chat("🛑 خدعة! ضوء أحمر مجدداً! قف مكاااانك! 🛑")
+                    else:
+                        await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
+                        
+                    await asyncio.sleep(random.uniform(3.0, 5.0))
+                    if not self.game_active: break
         except asyncio.CancelledError: pass
 
     async def on_chat(self, user: User, message: str) -> None:
@@ -155,8 +160,28 @@ class MyBot(BaseBot):
             if message in ["/setprison", "/setspawn", "ابدأ اللعبة", "اوقف اللعبة"]:
                 await self.highrise.chat(f"❌ هذا الأمر خاص بالقائد qais29!")
 
-if __name__ == "__main__":
+# ---------------------------------------------------------
+# تشغيل البوت المباشر عن طريق الـ الـ API الداخلي للاتصال الفوري
+# ---------------------------------------------------------
+async def run_bot():
+    from highrise.api import BotApi
+    from highrise.network import ConfigureRoomBot, create_connection
+    
     TOKEN = "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
     ROOM_ID = "663fdca136f32ee78399e525"
-    definitions = [BotDefinition(MyBot(), ROOM_ID, TOKEN)]
-    asyncio.run(main(definitions))
+    
+    bot = MyBot()
+    api = BotApi(bot)
+    bot.highrise = api
+    
+    print("🚀 جاري ربط الغرفة والاتصال بالسيرفرات الرسمية للعبة...")
+    try:
+        async with create_connection(TOKEN) as connection:
+            configure = ConfigureRoomBot(ROOM_ID)
+            await connection.send(configure)
+            await api.run(connection)
+    except Exception as e:
+        print(f"❌ خطأ اتصال مباشر: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(run_bot())
