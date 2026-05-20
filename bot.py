@@ -207,4 +207,4 @@ class MyBot(BaseBot):
         username_lower = user.username.lower()
 
         # تشغيل الـ 10 رقصات لجميع اللاعبين تلقائياً بالرقم
-        if message in self.
+        if message in self.dance_moves:
