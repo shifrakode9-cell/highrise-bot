@@ -13,15 +13,29 @@ class MyBot(BaseBot):
         self.prison_position = Position(0, 0, 0)
         self.spawn_position = Position(0, 0, 0)
         self.vip_position = Position(0, 0, 0)
-        self.finish_position = Position(0, 0, 0)  # خط نهاية الأمان
+        self.finish_position = Position(0, 0, 0)
         
         # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
         self.prisoners = set()
         self.game_task = None
 
+        # قاموس الـ 10 رقصات
+        self.dance_moves = {
+            "1": "dance-tiktok8",
+            "2": "dance-russian",
+            "3": "dance-weird",
+            "4": "dance-shoppingcart",
+            "5": "dance-praise",
+            "6": "emote-think",
+            "7": "emote-wave",
+            "8": "dance-blackpink",
+            "9": "dance-drop",
+            "10": "dance-handsup"
+        }
+
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game الآلي يعمل بأعلى كفاءة واستقرار!")
+        print("🤖 بوت لعبة Squid Game الآلي جاهز للقيادة الذكية!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if hasattr(position, 'x') and hasattr(position, 'z'):
@@ -29,7 +43,6 @@ class MyBot(BaseBot):
         
         username_lower = user.username.lower()
 
-        # خطة الأمان: التعرف على القائد qais29 فوراً
         if username_lower == "qais29":
             await self.highrise.chat(f"🫡 مرحباً بالقائد الأعلى @{user.username}! الغرفة تحت تصرفك الآن.")
             return
@@ -52,21 +65,19 @@ class MyBot(BaseBot):
 
         username_lower = user.username.lower()
 
-        # حماية القائد من السجن والقيود
         if username_lower == "qais29":
             return
 
-        # 1️⃣ فحص إذا وصل اللاعب إلى خط نهاية الأمان والفوز تلقائياً
+        # 1️⃣ فحص خط نهاية الأمان والفوز تلقائياً
         if self.game_active and self.finish_position.x != 0 and username_lower not in self.prisoners:
             distance_to_finish = ((current_x - self.finish_position.x)**2 + (current_z - self.finish_position.z)**2)**0.5
-            if distance_to_finish < 1.2:  # إذا داس على خط النهاية
+            if distance_to_finish < 1.2:
                 await self.highrise.chat(f"🎉 مبروك للفائز الأسطوري @{user.username}! لقد وصل إلى خط الأمان بنجاح! 🏆")
-                # نقله تلقائياً لمنصة الـ VIP مكافأة له ولإخلاء الساحة لغيره
                 if self.vip_position.x != 0:
                     await self.highrise.teleport(user.id, self.vip_position)
                 return
 
-        # 2️⃣ حماية منطقة الـ VIP تلقائياً من المتسللين العاديين
+        # 2️⃣ حماية منطقة الـ VIP تلقائياً
         if self.vip_position.x != 0 and username_lower not in self.prisoners:
             distance_to_vip = ((current_x - self.vip_position.x)**2 + (current_z - self.vip_position.z)**2)**0.5
             if distance_to_vip < 1.5:
@@ -112,7 +123,13 @@ class MyBot(BaseBot):
         message = message.strip().lower()
         username_lower = user.username.lower()
 
-        # التحكم حصري لـ qais29 فقط
+        if message in self.dance_moves:
+            try:
+                await self.highrise.send_emote(self.dance_moves[message])
+            except Exception as e:
+                print(f"Error dancing: {e}")
+            return
+
         if username_lower == "qais29":
             
             if message == "/setprison":
@@ -139,7 +156,6 @@ class MyBot(BaseBot):
                         await self.highrise.chat("💎 تم تحديد منصة الـ VIP الخاصة بك وحمايتها!")
                         break
 
-            # الأمر الجديد لضبط خط نهاية الأمان
             elif message == "/setfinish":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -151,30 +167,27 @@ class MyBot(BaseBot):
             elif message == "نسخ اللباس":
                 try:
                     room_users = await self.highrise.get_room_users()
-                    user_outfit = None
                     for u, pos in room_users.content:
-                        if u.id == user.id:
-                            user_outfit = u.outfit
+                        if u.username.lower() == "qais29":
+                            await self.highrise.set_outfit(u.outfit)
+                            await self.highrise.chat("👕 تم نسخ لباسك وارتداؤه بنجاح يا قائد!")
                             break
-                    if user_outfit:
-                        await self.highrise.set_outfit(user_outfit)
-                        await self.highrise.chat("👕 تم نسخ لباسك وارتداؤه بنجاح يا قائد!")
-                    else:
-                        await self.highrise.chat("تعذر قراءة تفاصيل لباسك الحالي.")
                 except Exception as e:
                     print(f"Error copying outfit: {e}")
+                    await self.highrise.chat("⚠️ عذراً يا قائد، واجهت مشكلة في قراءة خزانة الملابس.")
 
+            # أمر بدء اللعبة المطور: ينتقل البوت تلقائياً إلى خط النهاية لانتظار اللاعبين
             elif message == "ابدأ اللعبة":
                 if not self.game_active:
                     self.game_active = True
-                    room_users = await self.highrise.get_room_users()
-                    for u, pos in room_users.content:
-                        if u.id == user.id and isinstance(pos, Position):
-                            bot_info = await self.highrise.get_bot_info()
-                            await self.highrise.teleport(bot_info.user.id, pos)
-                            break
+                    
+                    # حيلة ذكية: إذا كنت قد سجلت خط النهاية، سينتقل البوت بنفسه ليقف هناك ويدير اللعبة!
+                    if self.finish_position.x != 0:
+                        bot_info = await self.highrise.get_bot_info()
+                        await self.highrise.teleport(bot_info.user.id, self.finish_position)
+                    
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية للمسابقة! البوت يتولى القيادة الآن.")
+                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! البوت يقف عند خط النهاية ومستعد للتحكيم.")
 
             elif message == "اوقف اللعبة":
                 if self.game_active:
