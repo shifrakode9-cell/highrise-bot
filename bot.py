@@ -19,13 +19,14 @@ def run_dummy_server():
     except Exception as e:
         print(f"⚠️ Dummy server alert: {e}")
 
+# تشغيل السيرفر في خلفية النظام فوراً قبل بدء البوت
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 
 # ---------------------------------------------------------
 # بوت لعبة Squid Game الآلي المطور
 # ---------------------------------------------------------
-class MyBot(BaseBot):
+class Bot(BaseBot):  # تم تغيير الاسم إلى Bot وهو الاسم القياسي للمكتبة
     def __init__(self):
         super().__init__()
         self.game_active = False
@@ -103,13 +104,11 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # 🟢 الضوء الأخضر
                 self.light = "green"
                 await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! 🏃‍♂️")
                 await asyncio.sleep(random.uniform(3.0, 6.0))
                 if not self.game_active: break
                 
-                # 🛑 الضوء الأحمر العشوائي المتكرر
                 red_loops = random.choice([1, 2])
                 for i in range(red_loops):
                     self.light = "red"
@@ -159,29 +158,3 @@ class MyBot(BaseBot):
         else:
             if message in ["/setprison", "/setspawn", "ابدأ اللعبة", "اوقف اللعبة"]:
                 await self.highrise.chat(f"❌ هذا الأمر خاص بالقائد qais29!")
-
-# ---------------------------------------------------------
-# تشغيل البوت المباشر المتوافق مع تحديثات مكتبة Highrise الجديدة
-# ---------------------------------------------------------
-async def run_bot():
-    from highrise.client import BotApi
-    from highrise.network import ConfigureRoomBot, create_connection
-    
-    TOKEN = "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
-    ROOM_ID = "663fdca136f32ee78399e525"
-    
-    bot = MyBot()
-    api = BotApi(bot)
-    bot.highrise = api
-    
-    print("🚀 جاري ربط الغرفة والاتصال بالسيرفرات الرسمية للعبة...")
-    try:
-        async with create_connection(TOKEN) as connection:
-            configure = ConfigureRoomBot(ROOM_ID)
-            await connection.send(configure)
-            await api.run(connection)
-    except Exception as e:
-        print(f"❌ خطأ اتصال مباشر: {e}")
-
-if __name__ == "__main__":
-    asyncio.run(run_bot())
