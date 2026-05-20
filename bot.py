@@ -109,7 +109,7 @@ class MyBot(BaseBot):
                 await asyncio.sleep(random.uniform(3.0, 6.0))
                 if not self.game_active: break
                 
-                # 🛑 الضوء الأحمر العشوائي المتكرر (حسب طلبك)
+                # 🛑 الضوء الأحمر العشوائي المتكرر
                 red_loops = random.choice([1, 2])
                 for i in range(red_loops):
                     self.light = "red"
@@ -161,10 +161,10 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ هذا الأمر خاص بالقائد qais29!")
 
 # ---------------------------------------------------------
-# تشغيل البوت المباشر عن طريق الـ الـ API الداخلي للاتصال الفوري
+# تشغيل البوت المباشر المتوافق مع تحديثات مكتبة Highrise الجديدة
 # ---------------------------------------------------------
 async def run_bot():
-    from highrise.api import BotApi
+    from highrise.client import BotApi
     from highrise.network import ConfigureRoomBot, create_connection
     
     TOKEN = "68fb8d63608e9ca5b97457b98d2876615b1368945ff6da3a97bd71192534e6e4"
