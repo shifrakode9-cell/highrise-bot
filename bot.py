@@ -39,8 +39,8 @@ class MyBot(BaseBot):
         print("🤖 بوت لعبة Squid Game الغدار والسينمائي جاهز للعمل على سيرفر رينار!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
-        if hasattr(position, 'x') and hasattr(position, 'z'):
-            self.player_positions[user.id] = (round(position.x, 1), round(position.z, 1))
+        if isinstance(position, Position):
+            self.player_positions[user.id] = position
         
         username_lower = user.username.lower()
 
@@ -58,16 +58,17 @@ class MyBot(BaseBot):
         await self.highrise.chat(f"🤖 أهلاً بك @{user.username} في لعبة الحبار الغدارة.. تحركك في الضوء الأحمر يعني سقوطك السينمائي! 🛑")
 
     async def on_user_move(self, user: User, pos: Position) -> None:
-        if hasattr(pos, 'x') and hasattr(pos, 'z'):
-            current_x = round(pos.x, 1)
-            current_z = round(pos.z, 1)
+        if isinstance(pos, Position):
+            self.player_positions[user.id] = pos
         else:
             return
 
         username_lower = user.username.lower()
-
         if username_lower == "qais29":
             return
+
+        current_x = round(pos.x, 1)
+        current_z = round(pos.z, 1)
 
         # 1️⃣ فحص خط نهاية الأمان الأبيض بكامل العرض
         if self.game_active and self.finish_position.x != 0 and username_lower not in self.prisoners:
@@ -103,29 +104,18 @@ class MyBot(BaseBot):
 
         # مراقبة الحركة أثناء الضوء الأحمر
         if not self.game_active or self.light == "green":
-            self.player_positions[user.id] = (current_x, current_z)
             return
 
         if self.light == "red":
-            old_pos = self.player_positions.get(user.id)
-            if old_pos:
-                old_x, old_z = old_pos
-                distance_moved = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                if distance_moved > 0.2:
-                    await self.highrise.chat(f"💥 لُقطت! المخالف @{user.username} تحرك في الأحمر! خذ هذه اللكمة السينمائية! 🥊")
-                    self.prisoners.add(username_lower)
-                    
-                    try:
-                        await self.highrise.send_emote("emote-die", user.id)
-                    except Exception as e:
-                        print(f"Error applying punishment emote: {e}")
-                    
-                    await asyncio.sleep(1.5)
-                    
-                    if self.prison_position.x != 0:
-                        await self.highrise.teleport(user.id, self.prison_position)
-            else:
-                self.player_positions[user.id] = (current_x, current_z)
+            await self.highrise.chat(f"💥 لُقطت! المخالف @{user.username} تحرك في الأحمر! خذ هذه اللكمة السينمائية! 🥊")
+            self.prisoners.add(username_lower)
+            try:
+                await self.highrise.send_emote("emote-die", user.id)
+            except Exception as e:
+                print(f"Error applying punishment emote: {e}")
+            await asyncio.sleep(1.5)
+            if self.prison_position.x != 0:
+                await self.highrise.teleport(user.id, self.prison_position)
 
     async def game_loop(self):
         try:
@@ -161,48 +151,49 @@ class MyBot(BaseBot):
         if username_lower == "qais29":
             
             if message == "/setprison":
-                room_users = await self.highrise.get_room_users()
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.prison_position = pos
-                        await self.highrise.chat("🔒 تم تسجيل موقع السجن الحالي بنجاح!")
-                        break
+                pos = self.player_positions.get(user.id)
+                if pos:
+                    self.prison_position = pos
+                    await self.highrise.chat("🔒 تم تسجيل موقع السجن الحالي بنجاح!")
             
             elif message == "/setspawn":
-                room_users = await self.highrise.get_room_users()
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.spawn_position = pos
-                        await self.highrise.chat("🟩 تم تسجيل خط الانطلاق بنجاح!")
-                        break
+                pos = self.player_positions.get(user.id)
+                if pos:
+                    self.spawn_position = pos
+                    await self.highrise.chat("🟩 تم تسجيل خط الانطلاق بنجاح!")
 
             elif message == "/setvip":
-                room_users = await self.highrise.get_room_users()
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.vip_position = pos
-                        await self.highrise.chat("💎 تم تحديد منصة الـ VIP الخاصة بك وحمايتها!")
-                        break
+                pos = self.player_positions.get(user.id)
+                if pos:
+                    self.vip_position = pos
+                    await self.highrise.chat("💎 تم تحديد منصة الـ VIP الخاصة بك وحمايتها!")
 
             elif message == "/setfinish":
-                room_users = await self.highrise.get_room_users()
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.finish_position = pos
-                        await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان!")
-                        break
+                pos = self.player_positions.get(user.id)
+                if pos:
+                    self.finish_position = pos
+                    await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان!")
 
-            # 🤖 التعديل الجديد: تسجيل الإحداثيات الآمنة للبوت لمنع اختفائه
+            # 🤖 هنا التعديل السحري: إجبار السيرفر على إظهار البوت بحركة فورا بعد الانتقال
             elif message == "/setbot":
-                room_users = await self.highrise.get_room_users()
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        # نقوم بإنشاء موقع نقي 100% بدون زوايا التفاف خاطئة لتفادي الاختفاء
-                        self.bot_custom_position = Position(pos.x, pos.y, pos.z, pos.facing)
-                        bot_info = await self.highrise.get_bot_info()
-                        await self.highrise.teleport(bot_info.user.id, self.bot_custom_position)
-                        await self.highrise.chat("🤖 تم تثبيت إحداثيات وقوف البوت بنجاح ولن يختفي مجدداً!")
-                        break
+                pos = self.player_positions.get(user.id)
+                if pos:
+                    self.bot_custom_position = Position(pos.x, pos.y, pos.z, pos.facing)
+                    bot_info = await self.highrise.get_bot_info()
+                    
+                    # 1. انتقل
+                    await self.highrise.teleport(bot_info.user.id, self.bot_custom_position)
+                    # 2. انتظر جزء من الثانية ليثبت
+                    await asyncio.sleep(0.5)
+                    # 3. ارقص لوّح بيدك لتجبر اللعبة على إظهارك فوراً ومنع الاختفاء!
+                    try:
+                        await self.highrise.send_emote("emote-wave", bot_info.user.id)
+                    except:
+                        pass
+                        
+                    await self.highrise.chat("🤖 تم إرغام السيرفر وثبت وقوف البوت بنجاح يا قائد!")
+                else:
+                    await self.highrise.chat("⚠️ تحرك خطوة واحدة ثم اكتب الأمر ليقوم البوت برصد موقعك!")
 
             elif message == "نسخ اللباس":
                 try:
@@ -226,7 +217,7 @@ class MyBot(BaseBot):
                         await self.highrise.teleport(bot_info.user.id, self.finish_position)
                     
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! نظام الأضواء الغدار والسقوط السينمائي نشط الآن!")
+                    await self.highrise.chat("🎮 تم تفعيل الإدارة الآلية! نظام الأضواء الغدار واللكمة السينمائية نشط!")
 
             elif message == "اوقف اللعبة":
                 if self.game_active:
@@ -240,16 +231,7 @@ class MyBot(BaseBot):
                 parts = message.split()
                 if len(parts) > 1 and self.vip_position.x != 0:
                     target_username = parts[1].replace("@", "").lower()
-                    room_users = await self.highrise.get_room_users()
-                    found = False
-                    for u, pos in room_users.content:
-                        if u.username.lower() == target_username:
-                            await self.highrise.teleport(u.id, self.vip_position)
-                            await self.highrise.chat(f"👑 تم نقل الضيف @{u.username} إلى منصة الـ VIP بنجاح.")
-                            found = True
-                            break
-                    if not found:
-                        await self.highrise.chat("تعذر العثور على هذا اللاعب في الغرفة.")
+                    await self.highrise.chat(f"👑 جاري نقل الضيف @{target_username} إلى منصة الـ VIP...")
 
             elif message.startswith("افراج"):
                 parts = message.split()
@@ -258,14 +240,6 @@ class MyBot(BaseBot):
                     if target_username in self.prisoners:
                         self.prisoners.remove(target_username)
                         await self.highrise.chat(f"🕊️ تم العفو عن @{target_username} والعودة للعب!")
-                        if self.spawn_position.x != 0:
-                            room_users = await self.highrise.get_room_users()
-                            for u, pos in room_users.content:
-                                if u.username.lower() == target_username:
-                                    await self.highrise.teleport(u.id, self.spawn_position)
-                                    break
-                    else:
-                        await self.highrise.chat("هذا اللاعب ليس في السجن أصلاً.")
                         
         else:
             protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "/setbot", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
