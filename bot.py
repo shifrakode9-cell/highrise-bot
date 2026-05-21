@@ -31,7 +31,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game - نسخة الضوء الأخضر (ثانيتين ونصف) جاهز!")
+        print("🤖 بوت لعبة Squid Game - النسخة الكاملة والمصلحة 100% جاهزة!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if isinstance(position, Position):
@@ -135,7 +135,7 @@ class MyBot(BaseBot):
             else:
                 await self.highrise.chat(f"❤️ شكراً لك يا غالي @{sender.username} على دعمك الكريم بـ {tip.amount} جولد!")
 
-    # 🔄 نظام الأضواء العشوائي بالكامل مع تثبيت وقت الأخضر لـ 2.5 ثانية
+    # 🔄 نظام الأضواء مع تثبيت وقت الأخضر لـ 2.5 ثانية والأحمر العشوائي
     async def game_loop(self):
         try:
             while self.game_active:
@@ -143,13 +143,12 @@ class MyBot(BaseBot):
                     if isinstance(pos, Position):
                         self.last_checked_positions[uid] = (round(pos.x, 1), round(pos.z, 1))
 
-                # اختيار عشوائي لطبيعة الجولة لمنع التكرار الرتيب
                 round_choice = random.choice(["green_round", "red_round", "repeat_red_round"])
 
                 if round_choice == "green_round":
                     self.light = "green"
                     await self.highrise.chat("🟢 ضوء أخضر (ثانيتين ونصف كاملة)! اركضوا! 🏃‍♂️")
-                    await asyncio.sleep(2.5) # ⏳ تم تعديل وقت الضوء الأخضر ليكون 2.5 ثانية كاملة
+                    await asyncio.sleep(2.5)
                 
                 elif round_choice == "red_round":
                     self.light = "red"
@@ -161,7 +160,6 @@ class MyBot(BaseBot):
                     await self.highrise.chat("🔴 ضوء أحمر!!! قف مكانك! 🛑")
                     await asyncio.sleep(random.uniform(2.0, 3.5))
                     if not self.game_active: break
-                    # تكرار الأحمر المباغت لتثبيت اللاعبين
                     await self.highrise.chat("🚨 تكرار الضوء الأحمر فجأة!!! ممنوع الحركة نهائياً! 🛑")
                     await asyncio.sleep(random.uniform(2.0, 3.5))
 
@@ -179,7 +177,7 @@ class MyBot(BaseBot):
             except: pass
             return
 
-        # فحص الصلاحيات الفولاذي للقائد وللمشرفين لإدارة اللعبة والأوامر اليدوية
+        # فحص الصلاحيات الفولاذي للقائد وللمشرفين
         if username_lower == "qais29" or username_lower in self.moderators:
             pos = self.player_positions.get(user.id)
             
@@ -225,7 +223,7 @@ class MyBot(BaseBot):
                     if self.game_task: self.game_task.cancel()
                     await self.highrise.chat("🛑 تم إيقاف اللعبة وإلغاء الرصد بنجاح.")
 
-            # 💎 نظام الـ VIP المتطور (الحصري لك وللمشرفين فقط)
+            # 💎 نظام الـ VIP المتطور للإدارة والمشرفين
             elif message.startswith("vip"):
                 parts = message.split()
                 
@@ -239,7 +237,7 @@ class MyBot(BaseBot):
                             for room_user, pos_item in user_list.users:
                                 if room_user.username.lower() == target_username:
                                     if target_username in self.prisoners:
-                                        self.prisoners.remove(target_username) # العفو التلقائي عنه لو كان مسجوناً
+                                        self.prisoners.remove(target_username)
                                     
                                     await self.highrise.chat(f"👑 بأمر من الإدارة، تم سحب @{room_user.username} إلى منصة الـ VIP! 💎")
                                     if self.vip_position:
@@ -248,7 +246,7 @@ class MyBot(BaseBot):
                                     return
                         except: pass
                         
-                # الحالة الثانية: عندما يكتب قيس أو المشرف كلمة (vip) بمفردها لنقل نفسه فوراً
+                # الحالة الثانية: عندما يكتب قيس أو المشرف كلمة vip لنفسه (السطر الذي كان مقطوعاً وتم إصلاحه هنا)
                 else:
                     if username_lower in self.prisoners:
                         self.prisoners.remove(username_lower)
@@ -256,4 +254,27 @@ class MyBot(BaseBot):
                     await self.highrise.chat(f"👑 أهلاً بالقادة! تم نقلك فوراً يا @{user.username} إلى الـ VIP! 💎")
                     if self.vip_position:
                         try:
-                            await self.highrise.teleport(user.id, self.vip_
+                            await self.highrise.teleport(user.id, self.vip_position)
+                            await self.highrise.send_emote("dance-praise", user.id)
+                        except: pass
+
+            elif message.startswith("افراج"):
+                parts = message.split()
+                if len(parts) > 1:
+                    target_username = parts[1].replace("@", "").lower()
+                    if target_username in self.prisoners:
+                        self.prisoners.remove(target_username)
+                        await self.highrise.chat(f"🕊️ تم العفو عن @{target_username} ونقله لخط البداية بكامل طاقته! 🌊")
+                        
+                        for uid, upos in self.player_positions.items():
+                            try:
+                                await self.highrise.send_emote("emote-wave", uid)
+                                if self.spawn_position:
+                                    await self.highrise.teleport(uid, self.spawn_position)
+                            except: pass
+                    else:
+                        await self.highrise.chat("هذا اللاعب ليس في السجن أصلاً.")
+        else:
+            protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "/setbot", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة", "vip"]
+            if message in protected_commands or message.startswith("افراج"):
+                await self.highrise.chat(f"❌ عذراً @{user.username}، هذا الأمر الحاسم مخصص للإدارة والمشرفين فقط!")
