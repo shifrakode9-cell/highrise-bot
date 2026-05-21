@@ -35,9 +35,6 @@ class MyBot(BaseBot):
             "10": "dance-handsup"
         }
 
-    async var_cooldown(self, duration):
-        await asyncio.sleep(duration)
-
     async def on_start(self, session_metadata: SessionMetadata) -> None:
         print("🤖 بوت لعبة Squid Game الغدار والسينمائي جاهز للعمل على سيرفر رينار!")
 
@@ -96,7 +93,6 @@ class MyBot(BaseBot):
             if distance_to_vip < 1.5:
                 await self.highrise.chat(f"🚨 ممنوع الاحتيال والتسلل يا @{user.username}! سقوط سينمائي سريع إلى السجن!")
                 self.prisoners.add(username_lower)
-                # تأثير العقوبة قبل النقل للـ VIP المحظور
                 try:
                     await self.highrise.send_emote("emote-die", user.id)
                 except:
@@ -121,7 +117,6 @@ class MyBot(BaseBot):
                     
                     # 🥊 تأثير العقوبة والسقوط السينمائي قبل السجن
                     try:
-                        # البوت يرسل إيموت السقوط أو الموت للاعب المخالف مباشرة
                         await self.highrise.send_emote("emote-die", user.id)
                     except Exception as e:
                         print(f"Error applying punishment emote: {e}")
@@ -137,11 +132,10 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # 🟢 جولة الضوء الأخضر - أوقات عشوائية مجنونة ومفاجئة للمساحات القصيرة
+                # 🟢 جولة الضوء الأخضر - أوقات عشوائية ومفاجئة تناسب المساحة القصيرة
                 self.light = "green"
                 await self.highrise.chat(f"🟢 ضوء أخضر! تحركوا بسرعة لكن بحذر! 🏃‍♂️")
                 
-                # تغيير نمط الوقت العشوائي في كل مرة لغدر اللاعبين
                 green_time = random.choice([random.uniform(1.5, 3.5), random.uniform(3.5, 5.5), random.uniform(0.8, 2.0)])
                 await asyncio.sleep(green_time)
                 
@@ -202,7 +196,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان!")
                         break
 
-            # 🤖 الأمر الجديد لتحديد مكان البوت المخصص من اختيارك
+            # 🤖 تحديد مكان وقوف البوت المخصص
             elif message == "/setbot":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
@@ -228,7 +222,6 @@ class MyBot(BaseBot):
                 if not self.game_active:
                     self.game_active = True
                     
-                    # إذا قمت بتحديد مكان مخصص للبوت عبر امر /setbot فسينتقل إليه، وإلا سينتقل تلقائياً لخط النهاية كالسابق
                     bot_info = await self.highrise.get_bot_info()
                     if self.bot_custom_position.x != 0:
                         await self.highrise.teleport(bot_info.user.id, self.bot_custom_position)
