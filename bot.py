@@ -35,7 +35,14 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 بوت لعبة Squid Game الغدار والسينمائي جاهز للعمل على سيرفر رينار!")
+        print("🤖 بوت لعبة Squid Game الغدار والسينمائية جاهز ومستقر في المنتصف!")
+        # إجبار البوت على التواجد والوقوف في المنتصف تلقائياً عند نقطة الناقل الأزرق
+        try:
+            bot_info = await self.highrise.get_bot_info()
+            # نقله فور التشغيل إلى الإحداثيات الثابتة الآمنة
+            await self.highrise.teleport(bot_info.user.id, Position(17.0, 0.0, 17.0, "FrontRight"))
+        except Exception as e:
+            print(f"Error placing bot initially: {e}")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         if isinstance(position, Position):
@@ -88,13 +95,13 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(user.id, self.prison_position)
                 return
 
-        # 3️⃣ الرصد الصارم في الضوء الأحمر بدون أي انهيار
+        # 3️⃣ الرصد الصارم في الضوء الأحمر
         if self.game_active and self.light == "red" and username_lower not in self.prisoners:
             old_pos = self.last_checked_positions.get(user.id)
             if old_pos:
                 old_x, old_z = old_pos
                 distance = ((current_x - old_x)**2 + (current_z - old_z)**2)**0.5
-                if distance > 0.15:  # إذا تحرك أكثر من خطوة صغيرة جداً
+                if distance > 0.15:
                     self.prisoners.add(username_lower)
                     await self.highrise.chat(f"💥 لُقطت! المخالف @{user.username} تحرك في الأحمر! خذ هذه اللكمة! 🥊")
                     try: await self.highrise.send_emote("emote-die", user.id)
@@ -103,7 +110,6 @@ class MyBot(BaseBot):
                     if self.prison_position:
                         await self.highrise.teleport(user.id, self.prison_position)
             
-        # تحديث الموقع الأخير دائماً للمقارنة
         self.last_checked_positions[user.id] = (current_x, current_z)
 
     # 💰 دفع 5 جولد في الحصالة للخروج التلقائي من السجن
@@ -122,7 +128,6 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # تحديث مواقع اللاعبين الثابتة لحظة بدء الأخضر لمنع الظلم
                 for uid, pos in self.player_positions.items():
                     if isinstance(pos, Position):
                         self.last_checked_positions[uid] = (round(pos.x, 1), round(pos.z, 1))
@@ -167,9 +172,9 @@ class MyBot(BaseBot):
                 self.finish_position = Position(pos.x, pos.y, pos.z, "FrontRight")
                 await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان!")
 
-            # إلغاء أمر النقل الذاتي للبوت لحمايته من الانهيار والاختفاء المزعج
+            # تأكيد ثبات الموقع المختار بالمنتصف تلقائياً
             elif message == "/setbot":
-                await self.highrise.chat("🤖 أنا واقف في مكاني الافتراضي وأراقب الغرفة بالكامل بنجاح يا قائد!")
+                await self.highrise.chat("🤖 أنا واقف في منتصف الممر ومستقر تماماً وجاهز لإدارة اللعبة!")
 
             elif message == "نسخ اللباس":
                 try:
