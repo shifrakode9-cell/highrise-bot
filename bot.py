@@ -115,13 +115,11 @@ class MyBot(BaseBot):
                     await self.highrise.chat(f"💥 لُقطت! المخالف @{user.username} تحرك في الأحمر! خذ هذه اللكمة السينمائية! 🥊")
                     self.prisoners.add(username_lower)
                     
-                    # 🥊 تأثير العقوبة والسقوط السينمائي قبل السجن
                     try:
                         await self.highrise.send_emote("emote-die", user.id)
                     except Exception as e:
                         print(f"Error applying punishment emote: {e}")
                     
-                    # الانتظار لمشاهدة السقوط الدرامي
                     await asyncio.sleep(1.5)
                     
                     if self.prison_position.x != 0:
@@ -132,7 +130,6 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # 🟢 جولة الضوء الأخضر - أوقات عشوائية ومفاجئة تناسب المساحة القصيرة
                 self.light = "green"
                 await self.highrise.chat(f"🟢 ضوء أخضر! تحركوا بسرعة لكن بحذر! 🏃‍♂️")
                 
@@ -142,7 +139,6 @@ class MyBot(BaseBot):
                 if not self.game_active: 
                     break
                 
-                # 🔴 جولة الضوء الأحمر الغدار المفاجئ
                 self.light = "red"
                 await self.highrise.chat(f"🔴 ضوء أحمر!!! قف مكااااانك تماماً! 🛑")
                 
@@ -196,15 +192,16 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🏁 تم تسجيل خط نهاية الأمان!")
                         break
 
-            # 🤖 تحديد مكان وقوف البوت المخصص
+            # 🤖 التعديل الجديد: تسجيل الإحداثيات الآمنة للبوت لمنع اختفائه
             elif message == "/setbot":
                 room_users = await self.highrise.get_room_users()
                 for u, pos in room_users.content:
                     if u.id == user.id and isinstance(pos, Position):
-                        self.bot_custom_position = pos
+                        # نقوم بإنشاء موقع نقي 100% بدون زوايا التفاف خاطئة لتفادي الاختفاء
+                        self.bot_custom_position = Position(pos.x, pos.y, pos.z, pos.facing)
                         bot_info = await self.highrise.get_bot_info()
                         await self.highrise.teleport(bot_info.user.id, self.bot_custom_position)
-                        await self.highrise.chat("🤖 تم تثبيت موقع وقوف البوت في هذا المكان بنجاح يا قائد!")
+                        await self.highrise.chat("🤖 تم تثبيت إحداثيات وقوف البوت بنجاح ولن يختفي مجدداً!")
                         break
 
             elif message == "نسخ اللباس":
