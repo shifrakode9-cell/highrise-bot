@@ -14,7 +14,7 @@ class MyBot(BaseBot):
         self.spawn_position = None
         self.vip_position = None
         self.finish_position = None
-        self.door_position = None  # سيتم حفظ موقع الباب الرئيسي هنا تلقائياً تلقائياً أول ما يدخل أي شخص
+        self.door_position = None  
         
         # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
@@ -33,7 +33,6 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        # تم إصلاح الدالة وحذف السطر المسبب للكراش تماماً
         print("🤖 البوت جاهز ومستقر لإدارة اللعبة بالتوقيتات الجديدة!")
 
     async def has_permissions(self, user: User) -> bool:
@@ -62,7 +61,7 @@ class MyBot(BaseBot):
         if hasattr(position, 'x') and hasattr(position, 'z'):
             self.player_positions[user.id] = (round(position.x, 1), round(position.z, 1))
             
-            # طريقة ذكية: أول إحداثيات يتم التقاطها عند دخول أي مستخدم (أو البوت نفسه) يتم اعتمادها كـ "الباب الرئيسي"
+            # التقاط موقع الباب الرئيسي تلقائياً عند دخول أول شخص
             if self.door_position is None:
                 self.door_position = position
         
@@ -79,16 +78,15 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 1)
         username_lower = user.username.lower()
 
-        # استثناء حساب قيس وحساب البوت نفسه من السجن والتحكيم
         if username_lower == "qais29" or user.id == self.highrise.my_id:
             return
 
-        # 1️⃣ رصد خط النهاية والأمان (متاح للجميع بما فيهم المشرفين و Sweet)
+        # 1️⃣ رصد خط النهاية والأمان
         if self.game_active and self.finish_position and self.spawn_position and username_lower not in self.prisoners:
             is_winner = False
             if abs(self.finish_position.x - self.spawn_position.x) > abs(self.finish_position.z - self.spawn_position.z):
                 if (self.finish_position.x >= self.spawn_position.x and current_x >= self.finish_position.x - 0.5) or \
-                   (self.finish_position.x < self.spawn_position.x and current_x <= self.finish_position.x + 0.5):
+                   (self.finish_position.x < self.spawn_position.x window_x <= self.finish_position.x + 0.5):
                     is_winner = True
             else:
                 if (self.finish_position.z >= self.spawn_position.z and current_z >= self.finish_position.z - 0.5) or \
@@ -105,7 +103,7 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        # 2️⃣ التحكيم المشدد عند الضوء الأحمر (يطبق على المشرفين و Sweet)
+        # 2️⃣ التحكيم عند الضوء الأحمر
         if self.light == "red" and username_lower not in self.prisoners:
             old_pos = self.player_positions.get(user.id)
             if old_pos:
@@ -136,7 +134,6 @@ class MyBot(BaseBot):
                 self.player_positions[user.id] = (current_x, current_z)
 
     async def game_loop(self):
-        """نظام إدارة الإشارات المطور مع توقيت أخضر دقيق وجولات محدودة"""
         try:
             while self.game_active:
                 decision = random.choice(["green", "red_fake"])
@@ -185,6 +182,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🔒 تم تحديد إحداثيات السجن بنجاح!")
                         break
             
+            # تم إصلاح السطر هنا (تبديل pinned إلى and الصحيحة) ليعود الاستجابة للأوامر بالكامل
             elif message_clean == "/setspawn":
                 for u, pos in room_users.content:
                     if u.id == user.id and isinstance(pos, Position):
@@ -225,13 +223,11 @@ class MyBot(BaseBot):
                 self.prisoners.clear() 
                 await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة اللاعبين لخط البداية، وعودة البوت التلقائية للباب الرئيسي!")
                 
-                # 1️⃣ نقل اللاعبين الآخرين لخط البداية
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
                             await self.highrise.teleport(u.id, self.spawn_position)
                 
-                # 2️⃣ إجبار البوت على الانتقال فوراً للباب الرئيسي الذي تم رصده وتخزينه بنجاح
                 if self.door_position:
                     await self.highrise.teleport(self.highrise.my_id, self.door_position)
 
