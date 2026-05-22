@@ -3,7 +3,6 @@ import random
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
 
-# تم تعديل اسم الكلاس ليكون MyBot تماماً ليتوافق مع أمر التشغيل الخاص بك
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
@@ -33,10 +32,10 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت المطور جاهز لإدارة اللعبة بأعلى كفاءة مع نظام المشاهد التعبيرية المخادع!")
+        print("🤖 البوت المطور جاهز لإدارة اللعبة مع تطبيق القوانين على المشرفين و Sweet!")
 
     async def has_permissions(self, user: User) -> bool:
-        """التحقق مما إذا كان المستخدم هو قيس، لولو، أو أحد المشرفين/المدراء"""
+        """التحقق من الصلاحيات لإدارة الأوامر (قيس، لولو، والمشرفين)"""
         username_lower = user.username.lower()
         if username_lower in ["qais29", "sweet_lulus"]:
             return True
@@ -74,10 +73,11 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 1)
         username_lower = user.username.lower()
 
-        if username_lower in ["qais29", "sweet_lulus"]:
+        # استثناء حساب قيس فقط من القوانين والسجن لحماية التحكم الإداري
+        if username_lower == "qais29":
             return
 
-        # 1️⃣ رصد خط النهاية والأمان (متاح فقط أثناء تفعيل اللعبة)
+        # 1️⃣ رصد خط النهاية والأمان (متاح للجميع بما فيهم المشرفين و Sweet)
         if self.game_active and self.finish_position and self.spawn_position and username_lower not in self.prisoners:
             is_winner = False
             if abs(self.finish_position.x - self.spawn_position.x) > abs(self.finish_position.z - self.spawn_position.z):
@@ -99,7 +99,7 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        # 2️⃣ التحكيم المشدد عند الضوء الأحمر مع مشهد سينمائي عشوائي (3.5 ثانية)
+        # 2️⃣ التحكيم المشدد عند الضوء الأحمر (يطبق على المشرفين و Sweet)
         if self.light == "red" and username_lower not in self.prisoners:
             old_pos = self.player_positions.get(user.id)
             if old_pos:
@@ -142,15 +142,15 @@ class MyBot(BaseBot):
                 self.player_positions[user.id] = (current_x, current_z)
 
     async def game_loop(self):
-        """نظام إدارة الإشارات المطور والمخادع"""
+        """نظام إدارة الإشارات المطور مع إطالة الضوء الأخضر بدقة"""
         try:
             while self.game_active:
                 decision = random.choice(["green", "red_fake"])
                 
                 if decision == "green":
                     self.light = "green"
-                    await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2 ثانية] 🏃‍♂️")
-                    await asyncio.sleep(2.0) 
+                    await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.3 ثانية] 🏃‍♂️")
+                    await asyncio.sleep(2.3) # تعديل المدة بدقة لثانيتين و3 أجزاء
                 else:
                     self.light = "red"
                     await self.highrise.chat("🛑 خدعة! الضوء ما زال أحمر! قف مكانك ولا تتحرك! 🔴")
@@ -238,11 +238,13 @@ class MyBot(BaseBot):
                 if self.game_task:
                     self.game_task.cancel()
                 self.prisoners.clear() 
-                await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة جميع اللاعبين والمساجين لخط البداية لبدء صفحة جديدة!")
+                await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة اللاعبين لخط البداية (مع استثناء البوت)!")
                 
                 if self.spawn_position:
                     for u, _ in room_users.content:
-                        await self.highrise.teleport(u.id, self.spawn_position)
+                        # استثناء حساب البوت الشخصي تماماً من الانتقال التلقائي لخط البداية
+                        if u.id != self.highrise.my_id:
+                            await self.highrise.teleport(u.id, self.spawn_position)
 
             # سحب الأعضاء للـ VIP بناءً على أمر حصري
             elif message_clean.startswith("vip"):
