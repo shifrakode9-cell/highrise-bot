@@ -3,7 +3,8 @@ import random
 from highrise import BaseBot, Position
 from highrise.models import SessionMetadata, User, CurrencyItem
 
-class SquidGameBot(BaseBot):
+# تم تعديل اسم الكلاس ليكون MyBot تماماً ليتوافق مع أمر التشغيل الخاص بك
+class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
         self.game_active = False
@@ -275,12 +276,3 @@ class SquidGameBot(BaseBot):
             protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
             if message_clean in protected_commands or message_clean.startswith("vip") or message_clean.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للمشرفين المعتمدين!")
-
-# ربط إيدي الغرفة والتوكن مباشرة لتسهيل التشغيل التلقائي على الـ Render
-if __name__ == "__main__":
-    room_id = "69fea9ea7ad83c6f1abffafe"
-    api_token = "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"
-    
-    from highrise.__main__ import *
-    bot = SquidGameBot()
-    asyncio.run(bot.highrise.start(room_id, api_token))
