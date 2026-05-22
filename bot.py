@@ -14,7 +14,7 @@ class MyBot(BaseBot):
         self.spawn_position = None
         self.vip_position = None
         self.finish_position = None
-        self.door_position = None  # حفظ موقع الباب الرئيسي للغرفة
+        self.door_position = None  # سيتم حفظ موقع الباب الرئيسي هنا تلقائياً تلقائياً أول ما يدخل أي شخص
         
         # حفظ مواقع اللاعبين والمساجين
         self.player_positions = {}
@@ -33,10 +33,8 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت جاهز ومستقر عند باب دخول الغرفة لإدارة اللعبة بالتوقيتات الجديدة!")
-        # تخزين موقع الباب الرئيسي للغرفة فور تشغيل البوت
-        if session_metadata.spawn_position:
-            self.door_position = session_metadata.spawn_position
+        # تم إصلاح الدالة وحذف السطر المسبب للكراش تماماً
+        print("🤖 البوت جاهز ومستقر لإدارة اللعبة بالتوقيتات الجديدة!")
 
     async def has_permissions(self, user: User) -> bool:
         """التحقق من الصلاحيات لإدارة الأوامر (قيس، لولو، والمشرفين)"""
@@ -63,6 +61,10 @@ class MyBot(BaseBot):
     async def on_user_join(self, user: User, position: Position) -> None:
         if hasattr(position, 'x') and hasattr(position, 'z'):
             self.player_positions[user.id] = (round(position.x, 1), round(position.z, 1))
+            
+            # طريقة ذكية: أول إحداثيات يتم التقاطها عند دخول أي مستخدم (أو البوت نفسه) يتم اعتمادها كـ "الباب الرئيسي"
+            if self.door_position is None:
+                self.door_position = position
         
         username_lower = user.username.lower()
         if username_lower in self.prisoners and self.prison_position:
@@ -223,13 +225,13 @@ class MyBot(BaseBot):
                 self.prisoners.clear() 
                 await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة اللاعبين لخط البداية، وعودة البوت التلقائية للباب الرئيسي!")
                 
-                # 1️⃣ نقل اللاعبين الآخرين لخط البداية (Spawn المحدد للعبة)
+                # 1️⃣ نقل اللاعبين الآخرين لخط البداية
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
                             await self.highrise.teleport(u.id, self.spawn_position)
                 
-                # 2️⃣ إجبار البوت على الانتقال فوراً للباب الرئيسي (نقطة دخول الغرفة) لمنع بقائه في خط البداية
+                # 2️⃣ إجبار البوت على الانتقال فوراً للباب الرئيسي الذي تم رصده وتخزينه بنجاح
                 if self.door_position:
                     await self.highrise.teleport(self.highrise.my_id, self.door_position)
 
