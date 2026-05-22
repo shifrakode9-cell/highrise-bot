@@ -9,19 +9,19 @@ class MyBot(BaseBot):
         self.game_active = False
         self.light = "red"
         
-        # إحداثيات المواقع الأساسية
+        # إحداثيات المواقع الأساسية للغرفة
         self.prison_position = None
         self.spawn_position = None
         self.vip_position = None
         self.finish_position = None
         self.door_position = None  
         
-        # حفظ مواقع اللاعبين والمساجين
+        # حفظ سجلات المواقع واللاعبين
         self.player_positions = {}
         self.prisoners = set()
         self.game_task = None
         
-        # الرقصات الـ 20 المتاحة للجميع
+        # قائمة الـ 20 رقصة العامة للغرفة
         self.dance_moves = {
             "1": "dance-tiktok8", "2": "dance-russian", "3": "dance-weird",
             "4": "dance-shoppingcart", "5": "dance-praise", "6": "emote-think",
@@ -33,10 +33,10 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت جاهز ومستقر لإدارة اللعبة بالتوقيتات الجديدة!")
+        print("🤖 البوت مراجع بالكامل ومستعد للتشغيل المستقر مع عشوائية الإشارات!")
 
     async def has_permissions(self, user: User) -> bool:
-        """التحقق من الصلاحيات لإدارة الأوامر (قيس، لولو، والمشرفين)"""
+        """التحقق من الرتب المسموح لها بالتحكم باللعبة والإعدادات"""
         username_lower = user.username.lower()
         if username_lower in ["qais29", "sweet_lulus"]:
             return True
@@ -46,11 +46,11 @@ class MyBot(BaseBot):
             if permissions.content.moderator or permissions.content.designer:
                 return True
         except Exception as e:
-            print(f"Error checking permissions: {e}")
+            print(f"Error checking privileges: {e}")
         return False
 
     async def get_target_user(self, target_name: str, room_users):
-        """البحث الدقيق عن المستخدم في الغرفة لتفادي تداخل الأسماء"""
+        """البحث والتحقق الدقيق من اسم المستخدم المستهدف"""
         clean_name = target_name.replace("@", "").strip().lower()
         for u, _ in room_users.content:
             if u.username.lower() == clean_name:
@@ -61,10 +61,11 @@ class MyBot(BaseBot):
         if hasattr(position, 'x') and hasattr(position, 'z'):
             self.player_positions[user.id] = (round(position.x, 1), round(position.z, 1))
             
-            # التقاط موقع الباب الرئيسي تلقائياً عند دخول أول شخص
+            # التقاط تلقائي لموقع الباب مع أول زائر للغرفة
             if self.door_position is None:
                 self.door_position = position
         
+        # إعادة سحب المسجون الهارب فور رجوعه للغرفة
         username_lower = user.username.lower()
         if username_lower in self.prisoners and self.prison_position:
             await asyncio.sleep(2.0)
@@ -78,15 +79,16 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 1)
         username_lower = user.username.lower()
 
+        # استثناء صاحب الغرفة والبوت من قواعد التجميد والسجن
         if username_lower == "qais29" or user.id == self.highrise.my_id:
             return
 
-        # 1️⃣ رصد خط النهاية والأمان
+        # 1️⃣ تدقيق ورصد خط النهاية والأمان للزوار الأحرار
         if self.game_active and self.finish_position and self.spawn_position and username_lower not in self.prisoners:
             is_winner = False
             if abs(self.finish_position.x - self.spawn_position.x) > abs(self.finish_position.z - self.spawn_position.z):
                 if (self.finish_position.x >= self.spawn_position.x and current_x >= self.finish_position.x - 0.5) or \
-                   (self.finish_position.x < self.spawn_position.x window_x <= self.finish_position.x + 0.5):
+                   (self.finish_position.x < self.spawn_position.x and current_x <= self.finish_position.x + 0.5):
                     is_winner = True
             else:
                 if (self.finish_position.z >= self.spawn_position.z and current_z >= self.finish_position.z - 0.5) or \
@@ -99,18 +101,19 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(user.id, self.vip_position)
                 return
 
+        # تحديث طبيعي للموقع أثناء الضوء الأخضر أو عند إيقاف اللعبة
         if not self.game_active or self.light == "green":
             self.player_positions[user.id] = (current_x, current_z)
             return
 
-        # 2️⃣ التحكيم عند الضوء الأحمر
+        # 2️⃣ تتبع ورصد الحركة أثناء الضوء الأحمر
         if self.light == "red" and username_lower not in self.prisoners:
             old_pos = self.player_positions.get(user.id)
             if old_pos:
                 old_x, old_z = old_pos
                 distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
                 
-                if distance > 0.2: 
+                if distance > 0.2:  # حساسية رصد الحركة
                     self.prisoners.add(username_lower)
                     
                     death_scenario = random.choice(["dead", "faint", "sad"])
@@ -134,39 +137,49 @@ class MyBot(BaseBot):
                 self.player_positions[user.id] = (current_x, current_z)
 
     async def game_loop(self):
+        """حلقة إدارة جولات اللعبة بنظام الإشارات التلقائي العشوائي والمتغير في كل دورة"""
         try:
             while self.game_active:
-                decision = random.choice(["green", "red_fake"])
+                # إنشاء قائمة الأحداث وتغيير ترتيبها عشوائياً بالكامل في كل دورة
+                # تضمن ظهور الأخضر مرة واحدة فقط، مع الحمراء الخادعة والحمراء العادية بترتيب عشوائي متغير
+                events = ["green", "red_fake", "red_normal"]
+                random.shuffle(events)
                 
-                if decision == "green":
-                    self.light = "green"
-                    await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.1 ثانية] 🏃‍♂️")
-                    await asyncio.sleep(2.1) 
-                else:
-                    self.light = "red"
-                    await self.highrise.chat("🛑 خدعة! الضوء ما زال أحمر! قف مكانك ولا تتحرك! 🔴")
-                    await asyncio.sleep(random.uniform(2.0, 3.5))
-
-                if not self.game_active: break
-                
-                self.light = "red"
-                await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
-                await asyncio.sleep(random.uniform(3.0, 4.5))
+                for current_event in events:
+                    if not self.game_active: 
+                        break
+                    
+                    if current_event == "green":
+                        self.light = "green"
+                        await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.1 ثانية] 🏃‍♂️")
+                        await asyncio.sleep(2.1) # مدة ثابتة ودقيقة للأخضر كما طلبت
+                    
+                    elif current_event == "red_fake":
+                        self.light = "red"
+                        await self.highrise.chat("🛑 خدعة! الضوء ما زال أحمر! قف مكانك ولا تتحرك! 🔴")
+                        await asyncio.sleep(random.uniform(2.0, 3.5))
+                    
+                    elif current_event == "red_normal":
+                        self.light = "red"
+                        await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
+                        await asyncio.sleep(random.uniform(3.0, 4.5))
                 
         except asyncio.CancelledError:
             pass
 
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
+        """تحرير تلقائي للمساجين عند دفع قيمة الكفالة (5 كولد أو أكثر) للبوت"""
         if receiver.username.lower() != self.highrise.my_id: 
             if sender.username.lower() in self.prisoners and tip.amount >= 5:
                 self.prisoners.remove(sender.username.lower())
-                await self.highrise.chat(f"💰 تم دفع الكفالة (5g) بنجاح! حرية لـ @{sender.username} والعودة لخط الانطلاق.")
+                await self.highrise.chat(f"💰 تم دفع الكفالة ({tip.amount}g) بنجاح! حرية لـ @{sender.username} والعودة لخط الانطلاق.")
                 if self.spawn_position:
                     await self.highrise.teleport(sender.id, self.spawn_position)
 
     async def on_chat(self, user: User, message: str) -> None:
         message_clean = message.strip().lower()
         
+        # تنفيذ الرقصات العامة عبر الأرقام (1-20)
         if message_clean in self.dance_moves:
             try: await self.highrise.send_emote(self.dance_moves[message_clean], user.id)
             except Exception as e: print(f"Error executing dance: {e}")
@@ -175,6 +188,7 @@ class MyBot(BaseBot):
         if await self.has_permissions(user):
             room_users = await self.highrise.get_room_users()
 
+            # أوامر تحديد الإحداثيات وإعداد الخريطة
             if message_clean == "/setprison":
                 for u, pos in room_users.content:
                     if u.id == user.id and isinstance(pos, Position):
@@ -182,7 +196,6 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🔒 تم تحديد إحداثيات السجن بنجاح!")
                         break
             
-            # تم إصلاح السطر هنا (تبديل pinned إلى and الصحيحة) ليعود الاستجابة للأوامر بالكامل
             elif message_clean == "/setspawn":
                 for u, pos in room_users.content:
                     if u.id == user.id and isinstance(pos, Position):
@@ -204,6 +217,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🏁 تم تحديد خط الأمان النهائي بكامل العرض!")
                         break
 
+            # إدارة اللعبة 
             elif message_clean == "ابدأ اللعبة":
                 if not self.game_active:
                     self.game_active = True
@@ -213,7 +227,7 @@ class MyBot(BaseBot):
                         if hasattr(pos, 'x'):
                             self.player_positions[u.id] = (round(pos.x, 1), round(pos.z, 1))
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 انطلقت اللعبة بنمط الإشارات السريع والمخادع! 😈")
+                    await self.highrise.chat("🎮 انطلقت اللعبة بنمط الإشارات السريع والمخادع العشوائي! 😈")
 
             elif message_clean == "اوقف اللعبة":
                 self.game_active = False
@@ -223,14 +237,17 @@ class MyBot(BaseBot):
                 self.prisoners.clear() 
                 await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة اللاعبين لخط البداية، وعودة البوت التلقائية للباب الرئيسي!")
                 
+                # سحب اللاعبين إلى خط الانطلاق
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
                             await self.highrise.teleport(u.id, self.spawn_position)
                 
+                # عودة مجسم البوت إلى موقعه عند الباب
                 if self.door_position:
                     await self.highrise.teleport(self.highrise.my_id, self.door_position)
 
+            # أمر النقل الفوري إلى منصة الـ VIP
             elif message_clean.startswith("vip"):
                 parts = message.split()
                 if len(parts) > 1 and self.vip_position:
@@ -241,6 +258,7 @@ class MyBot(BaseBot):
                     else:
                         await self.highrise.chat("❌ لم أتمكن من العثور على هذا اللاعب بالغرفة بدقة.")
 
+            # أمر العفو والإفراج الإداري عن مسجون محدد
             elif message_clean.startswith("افراج"):
                 parts = message.split()
                 if len(parts) > 1:
@@ -258,6 +276,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("❌ الاسم غير دقيق أو اللاعب غير موجود.")
                         
         else:
-            protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "نسخ اللباس", "ابدأ اللعبة", "اوقف اللعبة"]
+            # رسالة حظر للزوار العاديين عند محاولة العبث بأوامر التحكم
+            protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "ابدأ اللعبة", "اوقف اللعبة"]
             if message_clean in protected_commands or message_clean.startswith("vip") or message_clean.startswith("افراج"):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر والامتيازات حصرية للمشرفين المعتمدين!")
