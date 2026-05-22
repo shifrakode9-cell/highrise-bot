@@ -32,7 +32,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت المطور جاهز لإدارة اللعبة مع تطبيق القوانين على المشرفين و Sweet!")
+        print("🤖 البوت جاهز ومستقر عند باب دخول الغرفة لإدارة اللعبة بالتوقيتات الجديدة!")
 
     async def has_permissions(self, user: User) -> bool:
         """التحقق من الصلاحيات لإدارة الأوامر (قيس، لولو، والمشرفين)"""
@@ -133,7 +133,7 @@ class MyBot(BaseBot):
                         except:
                             pass
                     
-                    # الانتظار لمدة 3 ثوانٍ ونصف تماماً لتمثيل المشهد قبل النقل
+                    # الانتظار لمدة 3 ثوانٍ ونصف لتمثيل المشهد قبل النقل للسجن
                     await asyncio.sleep(3.5) 
                     
                     if self.prison_position:
@@ -142,25 +142,27 @@ class MyBot(BaseBot):
                 self.player_positions[user.id] = (current_x, current_z)
 
     async def game_loop(self):
-        """نظام إدارة الإشارات المطور مع إطالة الضوء الأخضر بدقة"""
+        """نظام إدارة الإشارات المطور مع توقيت أخضر دقيق وجولات محدودة"""
         try:
             while self.game_active:
+                # المرحلة الأولى: إما أخضر حقيقي أو خدعة حمراء
                 decision = random.choice(["green", "red_fake"])
                 
                 if decision == "green":
                     self.light = "green"
-                    await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.3 ثانية] 🏃‍♂️")
-                    await asyncio.sleep(2.3) # تعديل المدة بدقة لثانيتين و3 أجزاء
+                    await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.1 ثانية] 🏃‍♂️")
+                    await asyncio.sleep(2.1) # تم الضبط على 2.1 ثانية تماماً
                 else:
                     self.light = "red"
                     await self.highrise.chat("🛑 خدعة! الضوء ما زال أحمر! قف مكانك ولا تتحرك! 🔴")
-                    await asyncio.sleep(random.uniform(2.0, 4.0))
+                    await asyncio.sleep(random.uniform(2.0, 3.5))
 
                 if not self.game_active: break
                 
+                # المرحلة الثانية والاخيرة في الدورة: الأحمر الأساسي الثابت
                 self.light = "red"
                 await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
-                await asyncio.sleep(random.uniform(3.0, 5.0))
+                await asyncio.sleep(random.uniform(3.0, 4.5))
                 
         except asyncio.CancelledError:
             pass
@@ -199,7 +201,7 @@ class MyBot(BaseBot):
             
             elif message_clean == "/setspawn":
                 for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
+                    if u.id == user.id pinned isinstance(pos, Position):
                         self.spawn_position = pos
                         await self.highrise.chat("🟩 تم تحديد خط الانطلاق بنجاح!")
                         break
@@ -230,7 +232,7 @@ class MyBot(BaseBot):
                             self.player_positions[u.id] = (round(pos.x, 1), round(pos.z, 1))
 
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 انطلقت اللعبة بنمط مخادع جديد! تم خلط البيانات وجاهزون لصيد المحتالين! 😈")
+                    await self.highrise.chat("🎮 انطلقت اللعبة بنمط الإشارات السريع والمخادع! 😈")
 
             elif message_clean == "اوقف اللعبة":
                 self.game_active = False
@@ -238,11 +240,11 @@ class MyBot(BaseBot):
                 if self.game_task:
                     self.game_task.cancel()
                 self.prisoners.clear() 
-                await self.highrise.chat("🛑 تم إيقاف اللعبة. إعادة اللاعبين لخط البداية (مع استثناء البوت)!")
+                await self.highrise.chat("🛑 تم إيقاف اللعبة وإعادة اللاعبين لخط البداية! البوت مستقر في مكانه عند الباب.")
                 
                 if self.spawn_position:
                     for u, _ in room_users.content:
-                        # استثناء حساب البوت الشخصي تماماً من الانتقال التلقائي لخط البداية
+                        # يتم نقل اللاعبين الآخرين فقط؛ البوت لا يتم نقله أبداً ويظل ثابتاً عند الباب
                         if u.id != self.highrise.my_id:
                             await self.highrise.teleport(u.id, self.spawn_position)
 
