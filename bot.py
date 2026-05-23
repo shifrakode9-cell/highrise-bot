@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 نسخة الجسر الزجاجي الهندسية: نمط مربعات العبور الجانبية الآمنة عند كل مضاعفات الرقم 3!")
+        print("🚀 نسخة الاستشعار الدقيق 0.27 جاهزة ومستقرة للعمل!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -82,7 +82,7 @@ class MyBot(BaseBot):
         if user.id == self.highrise.my_id:
             return
 
-        # حماية الأخضر المطلقة
+        # حماية الأخضر المطلقة وتحديث السجلات فوراً لمنع التعليق
         if self.light == "green" or self.freeze_check:
             self.player_positions[user.id] = (round(pos.x, 2), round(pos.z, 2))
             return
@@ -115,7 +115,7 @@ class MyBot(BaseBot):
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.30:  
+                    if distance > 0.27:  # 🛠️ تم التعديل إلى استشعار 0.27 المتوازن بناءً على طلبك
                         await self.send_to_prison_with_effects(user)
                     else:
                         self.player_positions[user.id] = (current_x, current_z)
@@ -147,7 +147,7 @@ class MyBot(BaseBot):
             except: pass
 
     async def release_prisoner_via_gold(self, target_id: str):
-        """🔓 فك سجن فوري عند استقبال الدعم المباشر أو برطمان الغرفة"""
+        """🔓 الاستجابة الفورية والقصوى للحصالة والدعم بأي وسيلة كانت لفك السجين فوراً"""
         if target_id in self.prisoners:
             self.prisoners.remove(target_id)
             
@@ -220,7 +220,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🏁 تم تحديد خط الأمان النهائي!")
                         break
 
-            # أمر المربعات المرن: /setglass 1 right أو left
+            # تحديد المربعات: يمين (right)، يسار (left)، أو جانبي للعبور (side)
             elif message_clean.startswith("/setglass"):
                 parts = message_clean.split()
                 if len(parts) == 3:
@@ -230,13 +230,14 @@ class MyBot(BaseBot):
                     tile_id = None
                     if direction in ["right", "r", "يمين"]: tile_id = "right"
                     elif direction in ["left", "l", "يسار"]: tile_id = "left"
+                    elif direction in ["side", "s", "جانبي", "جانب"]: tile_id = "side"
                     
                     if tile_id and step.isdigit():
                         for u, pos in room_users.content:
                             if u.id == user.id and isinstance(pos, Position):
                                 key = f"{step}_{tile_id}"
                                 self.glass_positions[key] = pos
-                                await self.highrise.chat(f"💎 تم حفظ المربع {tile_id} في الصف {step} بنجاح!")
+                                await self.highrise.chat(f"💎 تم حفظ المربع [{tile_id}] في الصف {step} بنجاح!")
                                 break
 
             elif message_clean == "ابدأ اللعبة":
@@ -254,7 +255,7 @@ class MyBot(BaseBot):
                     self.game_task.cancel()
                 
                 self.game_task = asyncio.create_task(self.game_loop())
-                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بنظام الحماية الشاملة المطور! 🔥")
+                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بنظام الحماية الشاملة واستشعار 0.27 التنافسي! 🔥")
 
             elif message_clean == "اوقف اللعبة" or message_clean == "اوقف الزجاج":
                 self.game_active = False
@@ -283,26 +284,23 @@ class MyBot(BaseBot):
                 self.prisoners.clear()
                 self.player_positions.clear()
                 
-                # 🧠 التوزيع الهندسي: 3 خطوات تحدي متتالية، مع جعل الخطوات (3، 6، 9، 12 إلخ...) آمنة بالكامل كـ مربع عبور جانبي
-                is_right_trap = random.choice([True, False])
-                
-                for step in range(1, 26):
-                    # إذا كانت الخطوة تقبل القسمة على 3، تصبح تلقائياً مربع عبور أمان كامل في كلا الاتجاهين
-                    if step % 3 == 0:
-                        self.glass_traps[f"{step}_right"] = "safe"
-                        self.glass_traps[f"{step}_left"] = "safe"
-                        # تبديل عشوائي للنمط القادم للمجموعات التالية
-                        is_right_trap = random.choice([True, False])
-                    else:
-                        # توزيع التحدي على المربعات العادية
-                        if is_right_trap:
-                            self.glass_traps[f"{step}_right"] = "trap"
-                            self.glass_traps[f"{step}_left"] = "safe"
-                        else:
-                            self.glass_traps[f"{step}_left"] = "trap"
-                            self.glass_traps[f"{step}_right"] = "safe"
+                # بناء نظام مجموعات الـ 3 خطوات المتطابقة والمربعات الجانبية الآمنة
+                for block in range(0, 10): 
+                    is_right_trap = random.choice([True, False])
+                    for sub in range(1, 4):
+                        step_num = block * 3 + sub
                         
-                await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي المطور]! المربعات (3، 6، 9...) أصبحت نقاط أمان وعبور جانبية حرة! 🫨")
+                        # مربعات الجانب (side) آمنة دائماً وأبداً في كل الخطوات
+                        self.glass_traps[f"{step_num}_side"] = "safe"
+                        
+                        if is_right_trap:
+                            self.glass_traps[f"{step_num}_right"] = "trap"
+                            self.glass_traps[f"{step_num}_left"] = "safe"
+                        else:
+                            self.glass_traps[f"{step_num}_left"] = "trap"
+                            self.glass_traps[f"{step_num}_right"] = "safe"
+                        
+                await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي]! 3 خطوات كاملة فخ وما يقابلها أمان، والمربعات الجانبية حرة تماماً! 🫨")
 
             elif message_clean.startswith("vip"):
                 parts = message.split()
@@ -366,7 +364,7 @@ class MyBot(BaseBot):
                         fake_msg = random.choice([
                             "🛑 قف مكانك... امزح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
-                            "🛑 هل أنتم جاهزون للتوقف؟"
+                            "🛑 هل أنتم جاهزون للتوقف？"
                         ])
                         self.light = "green"
                         await self.highrise.chat(fake_msg)
