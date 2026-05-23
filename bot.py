@@ -176,7 +176,7 @@ class MyBot(BaseBot):
                             "🛑 قف مكانك... امزح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
                             "⚠️ انتبهوا! الحساسية الآن تتضاعف!",
-                            "🛑 هل أنتم جاهزون للتوقف؟"
+                            "🛑 هل أنتم جاهزون للتوقف?"
                         ])
                         # البوت يرسل رسالة مخادعة بينما الحالة الفعلية للضوء يحددها عشوائياً خلف الكواليس لإرباكهم
                         self.light = random.choice(["red", "green"])
@@ -239,7 +239,7 @@ class MyBot(BaseBot):
 
             elif message_clean == "/setfinish":
                 for u, pos in room_users.content:
-                    if u.id == user.id Glen and isinstance(pos, Position):
+                    if u.id == user.id and isinstance(pos, Position):
                         self.finish_position = pos
                         await self.highrise.chat("🏁 تم تحديد خط الأمان النهائي!")
                         break
