@@ -39,7 +39,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم تفعيل نظام: العشوائية، التمويه الخادع، والعد الصامت بنجاح!")
+        print("🤖 تم تشغيل البوت وتحديث نظام إشعارات الحصالة المضمون!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -86,7 +86,7 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 2)
         username_lower = user.username.lower()
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر (المطورة) ----------------
+        # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
         if self.game_active and not self.glass_game_active:
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
                 is_winner = False
@@ -115,12 +115,12 @@ class MyBot(BaseBot):
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.02:  # الحساسية المجهرية الفائقة
+                    if distance > 0.08:
                         await self.send_to_prison_with_effects(user)
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
-        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور ----------------
+        # ---------------- اللعبة الثانية: الجسر الزجاجي (الجهات المتقابلة) ----------------
         elif self.glass_game_active and not self.game_active:
             if username_lower not in self.prisoners:
                 for key, saved_pos in self.glass_positions.items():
@@ -149,44 +149,33 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                # مصفوفة الأطوار المحدثة لتشمل التمويه والعد الصامت والعشوائية الكاملة
                 events = ["green_silent", "fake_signal", "red_silent"]
                 random.shuffle(events)
                 
                 for current_event in events:
                     if not self.game_active: break
                     
-                    # 1. طور الأخضر الصامت (العد التنازلي الصامت)
                     if current_event == "green_silent":
                         self.light = "green"
                         await self.highrise.chat("🟢 ضوء أخضر! انطلقوا... [احسب وقتك بصمت!]")
-                        
-                        # مده زمنية عشوائية بالكامل لا تتجاوز ثانيتين (بين 0.5 و 1.9 ثانية)
                         green_duration = random.uniform(0.5, 1.9)
                         await asyncio.sleep(green_duration)
-                        
-                        # يقلب أحمر فوراً دون كتابة كلمة "أحمر" في الشات لتفعيل التحدي الصامت
                         self.light = "red"
-                        # يبقى أحمر صامت لفترة عشوائية سريعة لرصد من لم يتوقف تلقائياً
                         await asyncio.sleep(random.uniform(0.6, 1.8))
 
-                    # 2. طور التمويه والخداع (Fake Signals)
                     elif current_event == "fake_signal":
                         fake_msg = random.choice([
                             "🛑 قف مكانك... امزح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
                             "⚠️ انتبهوا! الحساسية الآن تتضاعف!",
-                            "🛑 هل أنتم جاهزون للتوقف?"
+                            "🛑 هل أنتم جاهزون للتوقف؟"
                         ])
-                        # البوت يرسل رسالة مخادعة بينما الحالة الفعلية للضوء يحددها عشوائياً خلف الكواليس لإرباكهم
                         self.light = random.choice(["red", "green"])
                         await self.highrise.chat(fake_msg)
                         await asyncio.sleep(random.uniform(0.7, 1.9))
 
-                    # 3. طور الأحمر الصامت العشوائي
                     elif current_event == "red_silent":
                         self.light = "red"
-                        # البوت يصمت تماماً ويترصد أي حركة خفيفة
                         red_duration = random.uniform(0.5, 1.9)
                         await asyncio.sleep(red_duration)
                         
@@ -195,15 +184,25 @@ class MyBot(BaseBot):
         finally:
             self.light = "red"
 
-    async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
-        sender_lower = sender.username.lower()
-        receiver_lower = receiver.username.lower()
-        if sender_lower in self.prisoners and receiver_lower == "qais29" and tip.amount >= 5:
-            self.prisoners.remove(sender_lower)
-            await self.highrise.chat(f"💰 كفالة معتمدة ({tip.amount}g)! حرية لـ @{sender.username} والعودة لخط البداية.")
-            if self.spawn_position:
-                try: await self.highrise.teleport(sender.id, self.spawn_position)
-                except: pass
+    # 🛠️ نظام كشف وإشعار تفاعلي ومضمون 100% للحصالة داخل الغرفة
+    async def on_room_tip(self, sender: User, tips: list[tuple[User, CurrencyItem]]) -> None:
+        try:
+            for receiver, item in tips:
+                if receiver.username.lower() == "qais29":
+                    # إرسال إشعار فوري في الشات يوضح أن هناك دعم وصلك بالفعل في الحصالة
+                    await self.highrise.chat(f"📢 إشعار: استلم @{receiver.username} دعماً بقيمة {item.amount}g من @{sender.username} في الحصالة!")
+                    
+                    if item.amount >= 5:
+                        sender_lower = sender.username.lower()
+                        if sender_lower in self.prisoners:
+                            self.prisoners.remove(sender_lower)
+                            await self.highrise.chat(f"🔓 تم تأكيد كفالة الـ 5g بنجاح! إفراج عن @{sender.username} وعودته للانطلاق.")
+                            if self.spawn_position:
+                                try: await self.highrise.teleport(sender.id, self.spawn_position)
+                                except: pass
+                    break
+        except Exception as e:
+            print(f"Error handling room tip: {e}")
 
     async def on_chat(self, user: User, message: str) -> None:
         message_clean = message.strip().lower()
@@ -248,13 +247,13 @@ class MyBot(BaseBot):
                 parts = message_clean.split()
                 if len(parts) == 3:
                     step = parts[1]     
-                    side = parts[2]     
-                    if side in ["right", "left"]:
+                    tile_id = parts[2]  
+                    if tile_id in ["r1", "r2", "r3", "l1", "l2", "l3"]:
                         for u, pos in room_users.content:
                             if u.id == user.id and isinstance(pos, Position):
-                                key = f"{step}_{side}"
+                                key = f"{step}_{tile_id}"
                                 self.glass_positions[key] = pos
-                                await self.highrise.chat(f"💎 تم حفظ الخطوة {step} الجانب {side} بنجاح!")
+                                await self.highrise.chat(f"💎 تم حفظ الصف {step} المربع {tile_id} بنجاح!")
                                 break
 
             elif message_clean == "ابدأ اللعبة":
@@ -298,22 +297,23 @@ class MyBot(BaseBot):
                 self.prisoners.clear()
                 self.player_positions.clear()
                 
-                groups = [
-                    [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12],
-                    [13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]
-                ]
-                
-                for group in groups:
+                for step in range(1, 25):
                     if random.choice([True, False]):
-                        for step in group:
-                            self.glass_traps[f"{step}_right"] = "trap"
-                            self.glass_traps[f"{step}_left"] = "safe"
+                        self.glass_traps[f"{step}_r1"] = "trap"
+                        self.glass_traps[f"{step}_r2"] = "trap"
+                        self.glass_traps[f"{step}_r3"] = "trap"
+                        self.glass_traps[f"{step}_l1"] = "safe"
+                        self.glass_traps[f"{step}_l2"] = "safe"
+                        self.glass_traps[f"{step}_l3"] = "safe"
                     else:
-                        for step in group:
-                            self.glass_traps[f"{step}_right"] = "safe"
-                            self.glass_traps[f"{step}_left"] = "trap"
+                        self.glass_traps[f"{step}_l1"] = "trap"
+                        self.glass_traps[f"{step}_l2"] = "trap"
+                        self.glass_traps[f"{step}_l3"] = "trap"
+                        self.glass_traps[f"{step}_r1"] = "safe"
+                        self.glass_traps[f"{step}_r2"] = "safe"
+                        self.glass_traps[f"{step}_r3"] = "safe"
                         
-                await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي] بنظام فخاخ المجموعات وتصفير الذاكرة! 🫨")
+                await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي] بنظام الجهات المتقابلة العشوائية بالكامل! 🫨")
 
             elif message_clean == "اوقف الزجاج":
                 self.glass_game_active = False
