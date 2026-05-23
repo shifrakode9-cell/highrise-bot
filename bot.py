@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم فحص وتدقيق الكود بالكامل بنسبة 100% - جاهز للعمل بدون أي أخطاء!")
+        print("🤖 تم التسهيل الكلي وإصلاح الحصالة لتعمل مع قيس والجميع بنجاح!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -87,7 +87,7 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 2)
         username_lower = user.username.lower()
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر المحدثة ----------------
+        # ---------------- اللعبة الأولى: أحمر وأخضر المحدثة والمسهلة ----------------
         if self.game_active and not self.glass_game_active:
             # التحقق من الفوز والوصول لخط الأمان أولاً
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
@@ -108,19 +108,22 @@ class MyBot(BaseBot):
                         except: pass
                     return
 
-            # حماية مطلقة وقت الأخضر أو خلال مهلة الأمان (3 أجزاء من الثانية)
+            # ⭐ أمان مطلق ومسهل جداً: لو الضوء أخضر أو خلال مهلة الأمان، نكتفي بحفظ الموقع الجديد لمنع الموت تماماً
             if self.light == "green" or self.freeze_check:
                 self.player_positions[user.id] = (current_x, current_z)
                 return
 
-            # رصد الحركة أثناء الإشارة الحمراء الفعلية المستقرة
+            # رصد الحركة أثناء الإشارة الحمراء الفعلية المستقرة وبمسافة أسهل (0.25)
             if self.light == "red" and username_lower not in self.prisoners:
                 old_pos = self.player_positions.get(user.id)
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.08:  
+                    if distance > 0.25:  # 🛠️ تم زيادة المسافة لتصبح اللعبة أسهل وتتحمل اهتزازات اللينك
                         await self.send_to_prison_with_effects(user)
+                    else:
+                        # إذا كانت الحركة صغيرة جداً، نحدث موقع اللاعب ولا نسجنه لنمكّنه من الثبات
+                        self.player_positions[user.id] = (current_x, current_z)
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
@@ -171,7 +174,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🟢 ضوء أخضر! انطلقوا... [احسب وقتك بصمت!]")
                         await asyncio.sleep(random.uniform(0.5, 1.9))
                         
-                        # تفعيل مهلة الأمان الحساسة عند التحول للأحمر (0.3 ثانية لامتصاص الـ Lag)
+                        # تفعيل مهلة الأمان عند التحول للأحمر (0.3 ثانية لامتصاص الـ Lag)
                         self.freeze_check = True
                         self.light = "red"
                         await self.update_all_positions(room_users)
@@ -186,7 +189,7 @@ class MyBot(BaseBot):
                             "🛑 قف مكانك... امزح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
                             "⚠️ انتبهوا! الحساسية الآن تتضاعف!",
-                            "🛑 هل أنتم جاهزون للتوقف؟"
+                            "🛑 هل أنتم جاهزون للتوقف?"
                         ])
                         # التمويه الآمن: الإشارة خضراء لمنع سجن اللاعبين عشوائياً أثناء قراءة الرسالة
                         self.light = "green"
@@ -210,19 +213,36 @@ class MyBot(BaseBot):
             self.freeze_check = False
 
     async def on_room_tip(self, sender: User, tips: list[tuple[User, CurrencyItem]]) -> None:
+        """🛠️ إصلاح الحصالة الشامل: تستجيب لقيس ولأي شخص يدعم أي حساب مشرف في الغرفة للإفراج التلقائي عن المظلومين"""
         try:
             for receiver, item in tips:
-                if receiver.username.lower() == "qais29":
-                    await self.highrise.chat(f"📢 إشعار: استلم @{receiver.username} دعماً بقيمة {item.amount}g من @{sender.username} في الحصالة!")
+                receiver_lower = receiver.username.lower()
+                sender_lower = sender.username.lower()
+                
+                # التحقق الشامل: الدعم موجه لقيس أو الدعم قادم من قيس نفسه أو من المشرفين
+                if receiver_lower in ["qais29", "sweet_lulus"] or sender_lower in ["qais29", "sweet_lulus"]:
+                    await self.highrise.chat(f"📢 حصالة اللعبة: تم استلام {item.amount}g من @{sender.username} لصالح الحصالة!")
                     
                     if item.amount >= 5:
-                        sender_lower = sender.username.lower()
+                        # فك سجن الشخص الذي تبرع أو دعم إذا كان مسجوناً
                         if sender_lower in self.prisoners:
                             self.prisoners.remove(sender_lower)
-                            await self.highrise.chat(f"🔓 تم تأكيد كفالة الـ 5g بنجاح! إفراج عن @{sender.username} وعودته للانطلاق.")
+                            await self.highrise.chat(f"🔓 كفالة معتمدة! تم الإفراج التلقائي عن المتبرع @{sender.username} وإعادته للانطلاق.")
                             if self.spawn_position:
-                                try: await self.highrise.teleport(sender.id, self.spawn_position) # 🛠️ تم التصحيح بنجاح لنقل اللاعب الذي دفع
+                                try: await self.highrise.teleport(sender.id, self.spawn_position)
                                 except: pass
+                        else:
+                            # إذا كان الداعم غير مسجون (مثل قيس)، يتم البحث عن أول لاعب مسجون في القائمة للإفراج عنه كمساعدة!
+                            if len(self.prisoners) > 0:
+                                room_users = await self.highrise.get_room_users()
+                                next_prisoner = list(self.prisoners)[0]
+                                target_user = await self.get_target_user(next_prisoner, room_users)
+                                if target_user:
+                                    self.prisoners.remove(next_prisoner)
+                                    await self.highrise.chat(f"🔓 كفالة شرفية! تم الإفراج عن @{target_user.username} بفضل دعم الحصالة!")
+                                    if self.spawn_position:
+                                        try: await self.highrise.teleport(target_user.id, self.spawn_position)
+                                        except: pass
                     break
         except Exception as e:
             print(f"Error handling room tip: {e}")
