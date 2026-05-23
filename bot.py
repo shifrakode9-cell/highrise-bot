@@ -33,7 +33,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت جاهز ومستقر بالوزنية الوسطى الجديدة!")
+        print("🤖 تم إصلاح دالة الحصالة نهائياً والبوت جاهز للعمل المستقر!")
 
     async def has_permissions(self, user: User) -> bool:
         """التحقق من الرتب المسموح لها بالتحكم باللعبة والإعدادات"""
@@ -109,7 +109,6 @@ class MyBot(BaseBot):
                 old_x, old_z = old_pos
                 distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
                 
-                # تم اعتماد الوزنية الوسطى (0.15) لضمان الصعوبة دون ظلم اللاعبين
                 if distance > 0.15:  
                     self.prisoners.add(username_lower)
                     
@@ -146,7 +145,6 @@ class MyBot(BaseBot):
                     
                     if current_event == "green":
                         self.light = "green"
-                        # تم اعتماد وقت الركض المتوازن (2.0 ثانية كاملة)
                         await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 2.0 ثانية] 🏃‍♂️")
                         await asyncio.sleep(2.0) 
                     
@@ -164,7 +162,9 @@ class MyBot(BaseBot):
             pass
 
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
-        if receiver.username.lower() != self.highrise.my_id: 
+        """تحرير تلقائي مصلح ومضمون 100% للمساجين عند دفع الكفالة للبوت مباشرة"""
+        # تم إصلاح الشرط هنا ليعتمد على معرف البوت الرقمي بشكل دقيق وقاطع
+        if receiver.id == self.highrise.my_id: 
             if sender.username.lower() in self.prisoners and tip.amount >= 5:
                 self.prisoners.remove(sender.username.lower())
                 await self.highrise.chat(f"💰 تم دفع الكفالة ({tip.amount}g) بنجاح! حرية لـ @{sender.username} والعودة لخط الانطلاق.")
