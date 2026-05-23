@@ -39,7 +39,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم تطبيق الحساسية الفائقة (0.02) وتوقيت الأخضر بدقة (1.9 ثانية)!")
+        print("🤖 تم تفعيل نظام: العشوائية، التمويه الخادع، والعد الصامت بنجاح!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -76,7 +76,6 @@ class MyBot(BaseBot):
         if not hasattr(pos, 'x') or not hasattr(pos, 'z'):
             return
 
-        # إذا لم تكن أي لعبة تعمل، تجاهل الحركة تماماً لتوفير معالجة البوت واستقراره
         if not self.game_active and not self.glass_game_active:
             return
 
@@ -87,7 +86,7 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 2)
         username_lower = user.username.lower()
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر (الحساسية القصوى) ----------------
+        # ---------------- اللعبة الأولى: أحمر وأخضر (المطورة) ----------------
         if self.game_active and not self.glass_game_active:
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
                 is_winner = False
@@ -116,13 +115,12 @@ class MyBot(BaseBot):
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    # مسافة سماح ضئيلة جداً (0.02) لرصد أدنى حركة قدم أو التفاتة
-                    if distance > 0.02:  
+                    if distance > 0.02:  # الحساسية المجهرية الفائقة
                         await self.send_to_prison_with_effects(user)
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
-        # ---------------- اللعبة الثانية: الجسر الزجاجي המكسور ----------------
+        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور ----------------
         elif self.glass_game_active and not self.game_active:
             if username_lower not in self.prisoners:
                 for key, saved_pos in self.glass_positions.items():
@@ -151,23 +149,47 @@ class MyBot(BaseBot):
     async def game_loop(self):
         try:
             while self.game_active:
-                events = ["green", "red_fake", "red_normal"]
+                # مصفوفة الأطوار المحدثة لتشمل التمويه والعد الصامت والعشوائية الكاملة
+                events = ["green_silent", "fake_signal", "red_silent"]
                 random.shuffle(events)
+                
                 for current_event in events:
                     if not self.game_active: break
                     
-                    if current_event == "green":
+                    # 1. طور الأخضر الصامت (العد التنازلي الصامت)
+                    if current_event == "green_silent":
                         self.light = "green"
-                        await self.highrise.chat("🟢 ضوء أخضر! تحركوا بحذر! [المدة: 1.9 ثانية] 🏃‍♂️")
-                        await asyncio.sleep(1.9) # مدة الضوء الأخضر بدقة ثانية و9 أجزاء من الثانية
-                    elif current_event == "red_fake":
+                        await self.highrise.chat("🟢 ضوء أخضر! انطلقوا... [احسب وقتك بصمت!]")
+                        
+                        # مده زمنية عشوائية بالكامل لا تتجاوز ثانيتين (بين 0.5 و 1.9 ثانية)
+                        green_duration = random.uniform(0.5, 1.9)
+                        await asyncio.sleep(green_duration)
+                        
+                        # يقلب أحمر فوراً دون كتابة كلمة "أحمر" في الشات لتفعيل التحدي الصامت
                         self.light = "red"
-                        await self.highrise.chat("🛑 خدعة! الضوء ما زال أحمر! قف مكانك ولا تتحرك! 🔴")
-                        await asyncio.sleep(random.uniform(2.0, 3.5))
-                    elif current_event == "red_normal":
+                        # يبقى أحمر صامت لفترة عشوائية سريعة لرصد من لم يتوقف تلقائياً
+                        await asyncio.sleep(random.uniform(0.6, 1.8))
+
+                    # 2. طور التمويه والخداع (Fake Signals)
+                    elif current_event == "fake_signal":
+                        fake_msg = random.choice([
+                            "🛑 قف مكانك... امزح معكم تحركوا!",
+                            "🛑 استعدوا... الضوء أوشك أن يقلب!",
+                            "⚠️ انتبهوا! الحساسية الآن تتضاعف!",
+                            "🛑 هل أنتم جاهزون للتوقف؟"
+                        ])
+                        # البوت يرسل رسالة مخادعة بينما الحالة الفعلية للضوء يحددها عشوائياً خلف الكواليس لإرباكهم
+                        self.light = random.choice(["red", "green"])
+                        await self.highrise.chat(fake_msg)
+                        await asyncio.sleep(random.uniform(0.7, 1.9))
+
+                    # 3. طور الأحمر الصامت العشوائي
+                    elif current_event == "red_silent":
                         self.light = "red"
-                        await self.highrise.chat("🔴 ضوء أحمر! قف مكاااانك! 🛑")
-                        await asyncio.sleep(random.uniform(3.0, 4.5))
+                        # البوت يصمت تماماً ويترصد أي حركة خفيفة
+                        red_duration = random.uniform(0.5, 1.9)
+                        await asyncio.sleep(red_duration)
+                        
         except asyncio.CancelledError:
             pass
         finally:
@@ -217,7 +239,7 @@ class MyBot(BaseBot):
 
             elif message_clean == "/setfinish":
                 for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
+                    if u.id == user.id Glen and isinstance(pos, Position):
                         self.finish_position = pos
                         await self.highrise.chat("🏁 تم تحديد خط الأمان النهائي!")
                         break
@@ -236,7 +258,6 @@ class MyBot(BaseBot):
                                 break
 
             elif message_clean == "ابدأ اللعبة":
-                # تصفير وإعادة تهيئة شاملة وفورية عند بدء جولة جديدة لمنع القفل
                 self.glass_game_active = False
                 self.game_active = True
                 self.prisoners.clear()
@@ -250,7 +271,7 @@ class MyBot(BaseBot):
                     self.game_task.cancel()
                 
                 self.game_task = asyncio.create_task(self.game_loop())
-                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بالحساسية الفائقة وجاهزية تامة! 😈")
+                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بنظام التحدي الصامت والتمويه العشوائي! 🔥")
 
             elif message_clean == "اوقف اللعبة":
                 self.game_active = False
@@ -267,7 +288,6 @@ class MyBot(BaseBot):
                             except: pass
 
             elif message_clean == "ابدأ الزجاج":
-                # تصفير وإعادة تهيئة شاملة وفورية للعبة الزجاج لمنع قفل الذاكرة
                 self.game_active = False
                 if self.game_task:
                     self.game_task.cancel()
@@ -278,7 +298,6 @@ class MyBot(BaseBot):
                 self.prisoners.clear()
                 self.player_positions.clear()
                 
-                # هندسة تفخيخ المجموعات الثلاثية عشوائياً حتى مربع 24
                 groups = [
                     [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12],
                     [13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]
