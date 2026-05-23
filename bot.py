@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 نسخة الحماية المطلقة: تم حل مشكلة الأخضر تماماً وإصلاح نقل الحصالة المباشر!")
+        print("🤖 نسخة الضبط الوسطي وفك السجن المباشر من الحصالة بنجاح 100%!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -83,7 +83,7 @@ class MyBot(BaseBot):
         if user.id == self.highrise.my_id:
             return
 
-        # ⭐ حماية الضوء الأخضر الفورية المطلقة لمنع الحبس تماماً بسبب الـ Lag
+        # حماية مطلقة وقت الأخضر أو أثناء مهلة الأمان المباشرة
         if self.light == "green" or self.freeze_check:
             self.player_positions[user.id] = (round(pos.x, 2), round(pos.z, 2))
             return
@@ -92,7 +92,7 @@ class MyBot(BaseBot):
         current_z = round(pos.z, 2)
         username_lower = user.username.lower()
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر المستقرة ----------------
+        # ---------------- اللعبة الأولى: أحمر وأخضر (الصعوبة الوسطية) ----------------
         if self.game_active and not self.glass_game_active:
             # التحقق من الفوز والوصول لخط الأمان أولاً
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
@@ -113,13 +113,13 @@ class MyBot(BaseBot):
                         except: pass
                     return
 
-            # رصد الحركة أثناء الإشارة الحمراء الفعلية فقط بمسافة مسهلة جداً (0.45) لتجنب ظلم الـ Lag
+            # رصد الحركة التنافسية الوسطية أثناء الإشارة الحمراء الفعلية المستقرة
             if username_lower not in self.prisoners:
                 old_pos = self.player_positions.get(user.id)
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.45:  # مسافة عادلة ومسهلة تمنع السجن العشوائي تماماً
+                    if distance > 0.20:  # 🛠️ الصعوبة الوسطية والموزونة بدقة لمنع سجن الأخضر والاهتزازات
                         await self.send_to_prison_with_effects(user)
                     else:
                         self.player_positions[user.id] = (current_x, current_z)
@@ -210,43 +210,39 @@ class MyBot(BaseBot):
             self.freeze_check = False
 
     async def on_room_tip(self, sender: User, tips: list[tuple[User, CurrencyItem]]) -> None:
-        """🔒 إصلاح الحصالة النهائي: فك سجن قيس أو أي متبرع فوراً وإعادته لنقطة البداية بشكل مضمون"""
+        """🛠️ الحل النهائي والمباشر للحصالة: أي شخص يدفع 5g وكان مسجوناً يتم إطلاق سراحه ونقله للبداية فوراً بدون شروط معقدة"""
         try:
             for receiver, item in tips:
-                receiver_lower = receiver.username.lower()
-                sender_lower = sender.username.lower()
-                
-                # التحقق إذا كان الدعم موجه لك أو مرسل من قبلك أو من أحد المشرفين المعتمدين
-                if receiver_lower in ["qais29", "sweet_lulus"] or sender_lower in ["qais29", "sweet_lulus"]:
-                    if item.amount >= 5:
-                        # إذا كان الدافع مسجوناً (مثل قيس أو لاعب آخر) يتم فك سجنه فوراً وإعادته للبداية
-                        if sender_lower in self.prisoners:
-                            self.prisoners.remove(sender_lower)
-                            await self.highrise.chat(f"🔓 كفالة الـ {item.amount}g مقبولة! تم الإفراج عن @{sender.username} ونقله للانطلاق.")
-                            
-                            # معالجة لاق السيرفر: محاولة نقل فورية ومحاولة أخرى احتياطية بعد ثانية لضمان النقل
-                            if self.spawn_position:
-                                try: 
-                                    await self.highrise.teleport(sender.id, self.spawn_position)
-                                    await asyncio.sleep(1.0)
-                                    await self.highrise.teleport(sender.id, self.spawn_position)
-                                except: pass
-                        else:
-                            # إذا كان الداعم حر (مثل قيس يدعم لاعب آخر)، يتم فك سجن أول لاعب مسجون في القائمة كمساعدة له
-                            if len(self.prisoners) > 0:
-                                room_users = await self.highrise.get_room_users()
-                                next_prisoner = list(self.prisoners)[0]
-                                target_user = await self.get_target_user(next_prisoner, room_users)
-                                if target_user:
-                                    self.prisoners.remove(next_prisoner)
-                                    await self.highrise.chat(f"🔓 تبرع شرفي! تم فك سجن اللاعب @{target_user.username} بفضل الدعم المالي!")
-                                    if self.spawn_position:
-                                        try:
-                                            await self.highrise.teleport(target_user.id, self.spawn_position)
-                                            await asyncio.sleep(1.0)
-                                            await self.highrise.teleport(target_user.id, self.spawn_position)
-                                        except: pass
-                    break
+                if item.amount >= 5:
+                    sender_lower = sender.username.lower()
+                    
+                    # إذا كان الدافع مسجوناً حالياً (أنت أو أي شخص آخر)، يتم فك السجن عنه تلقائياً
+                    if sender_lower in self.prisoners:
+                        self.prisoners.remove(sender_lower)
+                        await self.highrise.chat(f"🔓 كفالة الحصالة ({item.amount}g) نجحت! تم الإفراج عن @{sender.username} وإعادته لنقطة الانطلاق.")
+                        
+                        if self.spawn_position:
+                            try:
+                                await self.highrise.teleport(sender.id, self.spawn_position)
+                                await asyncio.sleep(1.0)
+                                await self.highrise.teleport(sender.id, self.spawn_position)  # إعادة محاولة لتأكيد تخطي الـ Lag
+                            except: pass
+                    else:
+                        # إذا كان الدافع حر (مثل قيس أو مشرف يساعد المسجونين)، يتم فك سجن أول لاعب مسجون في القائمة كمساعدة شرفية
+                        if len(self.prisoners) > 0:
+                            room_users = await self.highrise.get_room_users()
+                            next_prisoner = list(self.prisoners)[0]
+                            target_user = await self.get_target_user(next_prisoner, room_users)
+                            if target_user:
+                                self.prisoners.remove(next_prisoner)
+                                await self.highrise.chat(f"🔓 دعم الحصالة نجح! تم فك سجن اللاعب @{target_user.username} بطلب من المتبرع @{sender.username}.")
+                                if self.spawn_position:
+                                    try:
+                                        await self.highrise.teleport(target_user.id, self.spawn_position)
+                                        await asyncio.sleep(1.0)
+                                        await self.highrise.teleport(target_user.id, self.spawn_position)
+                                    except: pass
+                break
         except Exception as e:
             print(f"Error handling room tip: {e}")
 
