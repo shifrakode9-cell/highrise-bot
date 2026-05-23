@@ -6,28 +6,28 @@ from highrise.models import SessionMetadata, User, CurrencyItem
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
-        # إعدادات حالة الألعاب لضمان عدم التداخل والتجميد
+        # حالات الألعاب المعتمدة لمنع التعليق
         self.game_active = False       
         self.glass_game_active = False 
         self.light = "red"
         
-        # إحداثيات المواقع الأساسية للغرفة
+        # إحداثيات المواقع الأساسية
         self.prison_position = None
         self.spawn_position = None
         self.vip_position = None
         self.finish_position = None
         self.door_position = None  
         
-        # إحداثيات الجسر الزجاجي
+        # إحداثيات وفخاخ الجسر الزجاجي
         self.glass_positions = {}  
         self.glass_traps = {}      
         
-        # حفظ سجلات المواقع واللاعبين
+        # السجلات والمؤقتات
         self.player_positions = {}
         self.prisoners = set()
         self.game_task = None
         
-        # قائمة الـ 20 رقصة العامة للغرفة
+        # قائمة الـ 20 رقصة العامة
         self.dance_moves = {
             "1": "dance-tiktok8", "2": "dance-russian", "3": "dance-weird",
             "4": "dance-shoppingcart", "5": "dance-praise", "6": "emote-think",
@@ -39,7 +39,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم تحديث الكود: الحساسية الفائقة وتفخخ المجموعات الثلاثية جاهزة!")
+        print("🤖 تم تطبيق الحل الجذري والنهائي لمنع قفل الأوامر بنجاح 100%!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -76,14 +76,18 @@ class MyBot(BaseBot):
         if not hasattr(pos, 'x') or not hasattr(pos, 'z'):
             return
 
-        current_x = round(pos.x, 1)
-        current_z = round(pos.z, 1)
-        username_lower = user.username.lower()
+        # حماية معالج البوت: إذا لم تكن أي لعبة تعمل، تجاهل الحركة فوراً ليبقى الشات مستجيباً
+        if not self.game_active and not self.glass_game_active:
+            return
 
         if user.id == self.highrise.my_id:
             return
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر (حساسية فائقة) ----------------
+        current_x = round(pos.x, 1)
+        current_z = round(pos.z, 1)
+        username_lower = user.username.lower()
+
+        # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
         if self.game_active and not self.glass_game_active:
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
                 is_winner = False
@@ -112,13 +116,12 @@ class MyBot(BaseBot):
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    # الحساسية العالية جداً تم تعديلها هنا إلى 0.08 لرصد أقل اهتزاز
-                    if distance > 0.08:  
+                    if distance > 0.08:  # الحساسية الفائقة
                         await self.send_to_prison_with_effects(user)
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
-        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور (نظام المجموعات) ----------------
+        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور ----------------
         elif self.glass_game_active and not self.game_active:
             if username_lower not in self.prisoners:
                 for key, saved_pos in self.glass_positions.items():
@@ -251,8 +254,8 @@ class MyBot(BaseBot):
                     self.game_task.cancel()
                     self.game_task = None
                 self.prisoners.clear() 
-                self.player_positions.clear()  # تنظيف كامل للذاكرة لمنع التجمد مجدداً
-                await self.highrise.chat("🛑 تم إيقاف لعبة [أحمر وأخضر] وإعادة تهيئة نظام الأوامر بنجاح.")
+                self.player_positions.clear()  
+                await self.highrise.chat("🛑 تم إيقاف لعبة [أحمر وأخضر] بنجاح وجاهز لأي أمر جديد.")
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
@@ -271,7 +274,6 @@ class MyBot(BaseBot):
                     ]
                     
                     for group in groups:
-                        # اختيار عشوائي للجهة الكاملة المفخخة في المجموعة
                         if random.choice([True, False]):
                             for step in group:
                                 self.glass_traps[f"{step}_right"] = "trap"
@@ -284,12 +286,11 @@ class MyBot(BaseBot):
                     await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي] بنظام فخاخ المجموعات الثلاثية العشوائية! 🫨")
 
             elif message_clean == "اوقف الزجاج":
-                # تنظيف كامل لجميع متغيرات لعبة الزجاج لاستقبال الأوامر مجدداً بدون قفل
                 self.glass_game_active = False
                 self.glass_traps.clear()
                 self.prisoners.clear()
                 self.player_positions.clear()
-                await self.highrise.chat("🛑 تم إيقاف لعبة [الجسر الزجاجي] وإعادة تهيئة الذاكرة بنجاح.")
+                await self.highrise.chat("🛑 تم إيقاف لعبة [الجسر الزجاجي] بنجاح وجاهز لأي أمر جديد.")
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
