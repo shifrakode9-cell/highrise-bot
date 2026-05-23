@@ -6,7 +6,7 @@ from highrise.models import SessionMetadata, User, CurrencyItem
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
-        # إعدادات حالة الألعاب
+        # إعدادات حالة الألعاب لضمان عدم التداخل والتجميد
         self.game_active = False       
         self.glass_game_active = False 
         self.light = "red"
@@ -39,7 +39,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم حل مشكلة التجمد والتعليق نهائياً! البوت مستقر تماماً.")
+        print("🤖 تم تحديث الكود: الحساسية الفائقة وتفخخ المجموعات الثلاثية جاهزة!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -83,7 +83,7 @@ class MyBot(BaseBot):
         if user.id == self.highrise.my_id:
             return
 
-        # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
+        # ---------------- اللعبة الأولى: أحمر وأخضر (حساسية فائقة) ----------------
         if self.game_active and not self.glass_game_active:
             if self.finish_position and self.spawn_position and username_lower not in self.prisoners:
                 is_winner = False
@@ -112,12 +112,13 @@ class MyBot(BaseBot):
                 if old_pos:
                     old_x, old_z = old_pos
                     distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.15:  
+                    # الحساسية العالية جداً تم تعديلها هنا إلى 0.08 لرصد أقل اهتزاز
+                    if distance > 0.08:  
                         await self.send_to_prison_with_effects(user)
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
-        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور ----------------
+        # ---------------- اللعبة الثانية: الجسر الزجاجي المكسور (نظام المجموعات) ----------------
         elif self.glass_game_active and not self.game_active:
             if username_lower not in self.prisoners:
                 for key, saved_pos in self.glass_positions.items():
@@ -144,7 +145,6 @@ class MyBot(BaseBot):
             except: pass
 
     async def game_loop(self):
-        """حلقة متينة تدعم الإلغاء الفوري دون التسبب في تعليق البوت"""
         try:
             while self.game_active:
                 events = ["green", "red_fake", "red_normal"]
@@ -239,12 +239,11 @@ class MyBot(BaseBot):
                         if hasattr(pos, 'x'):
                             self.player_positions[u.id] = (round(pos.x, 1), round(pos.z, 1))
                     
-                    # إلغاء أي عملية قديمة أولاً للتنظيف التام
                     if self.game_task and not self.game_task.done():
                         self.game_task.cancel()
                     
                     self.game_task = asyncio.create_task(self.game_loop())
-                    await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بالوزنية المتوازنة! 😈")
+                    await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بالحساسية الفائقة! 😈")
 
             elif message_clean == "اوقف اللعبة":
                 self.game_active = False
@@ -252,7 +251,8 @@ class MyBot(BaseBot):
                     self.game_task.cancel()
                     self.game_task = None
                 self.prisoners.clear() 
-                await self.highrise.chat("🛑 تم إيقاف لعبة [أحمر وأخضر] وإعادة الجميع لنقطة الانطلاق.")
+                self.player_positions.clear()  # تنظيف كامل للذاكرة لمنع التجمد مجدداً
+                await self.highrise.chat("🛑 تم إيقاف لعبة [أحمر وأخضر] وإعادة تهيئة نظام الأوامر بنجاح.")
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
@@ -264,22 +264,32 @@ class MyBot(BaseBot):
                     self.glass_game_active = True
                     self.glass_traps.clear()
                     
-                    steps = set(key.split('_')[0] for key in self.glass_positions.keys())
-                    for step in steps:
+                    # هندسة تفخيخ المجموعات الثلاثية عشوائياً حتى مربع 24
+                    groups = [
+                        [1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12],
+                        [13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]
+                    ]
+                    
+                    for group in groups:
+                        # اختيار عشوائي للجهة الكاملة المفخخة في المجموعة
                         if random.choice([True, False]):
-                            self.glass_traps[f"{step}_right"] = "trap"
-                            self.glass_traps[f"{step}_left"] = "safe"
+                            for step in group:
+                                self.glass_traps[f"{step}_right"] = "trap"
+                                self.glass_traps[f"{step}_left"] = "safe"
                         else:
-                            self.glass_traps[f"{step}_right"] = "safe"
-                            self.glass_traps[f"{step}_left"] = "trap"
+                            for step in group:
+                                self.glass_traps[f"{step}_right"] = "safe"
+                                self.glass_traps[f"{step}_left"] = "trap"
                             
-                    await self.highrise.chat("⚡ تم تشغيل لعبة [الجسر الزجاجي] وتغيير الفخاخ عشوائياً بالكامل! اركضوا بحذر! 🫨")
+                    await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي] بنظام فخاخ المجموعات الثلاثية العشوائية! 🫨")
 
             elif message_clean == "اوقف الزجاج":
+                # تنظيف كامل لجميع متغيرات لعبة الزجاج لاستقبال الأوامر مجدداً بدون قفل
                 self.glass_game_active = False
                 self.glass_traps.clear()
                 self.prisoners.clear()
-                await self.highrise.chat("🛑 تم إيقاف لعبة [الجسر الزجاجي] بنجاح.")
+                self.player_positions.clear()
+                await self.highrise.chat("🛑 تم إيقاف لعبة [الجسر الزجاجي] وإعادة تهيئة الذاكرة بنجاح.")
                 if self.spawn_position:
                     for u, _ in room_users.content:
                         if u.id != self.highrise.my_id:
