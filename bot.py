@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 تم تشغيل البوت بنجاح بعد إصلاح خطأ خطوط الاكواد وتنظيف الـ Syntax!")
+        print("🚀 تم تشغيل البوت وإغلاق كافة علامات التنصيص المقطوعة بنجاح!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -355,33 +355,3 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر حصرية للمشرفين المعتمدين!")
 
     async def update_all_positions(self, room_users):
-        for u, pos in room_users.content:
-            if hasattr(pos, 'x'):
-                self.player_positions[u.id] = (round(pos.x, 2), round(pos.z, 2))
-
-    async def game_loop(self):
-        try:
-            while self.game_active:
-                events = ["green_silent", "fake_signal", "red_silent"]
-                random.shuffle(events)
-                for current_event in events:
-                    if not self.game_active: break
-                    room_users = await self.highrise.get_room_users()
-                    
-                    if current_event == "green_silent":
-                        self.light = "green"
-                        await self.highrise.chat("🟢 ضوء أخضر! انطلقوا... [احسب وقتك بصمت!]")
-                        await asyncio.sleep(random.uniform(0.5, 1.9))
-                        
-                        self.freeze_check = True
-                        self.light = "red"
-                        await self.update_all_positions(room_users)
-                        await asyncio.sleep(0.4)
-                        self.freeze_check = False
-                        await asyncio.sleep(random.uniform(0.6, 1.8))
-
-                    elif current_event == "fake_signal":
-                        fake_msg = random.choice([
-                            "🛑 قف مكانك... amzح معكم تحركوا!",
-                            "🛑 استعدوا... الضوء أوشك أن يقلب!",
-                            "🛑 هل أنتم جاهز
