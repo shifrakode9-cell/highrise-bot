@@ -35,7 +35,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 Bot started successfully after full syntax validation!")
+        print("🚀 Bot started successfully with fixed glass radar and tips handler!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -70,15 +70,20 @@ class MyBot(BaseBot):
                 pass
 
     async def release_prisoner_via_gold(self, target_id: str):
+        """🔓 معالج التحرير الفوري الشامل للحصالة المعتمد والمصلح"""
         if target_id in self.prisoners:
             self.prisoners.remove(target_id)
-            room_users = await self.highrise.get_room_users()
-            display_name = "اللاعب"
-            for u, _ in room_users.content:
-                if u.id == target_id:
-                    display_name = f"@{u.username}"
-                    break
-            await self.highrise.chat(f"🔓 تم تحرير {display_name} من السجن بفضل الدعم!")
+            try:
+                room_users = await self.highrise.get_room_users()
+                display_name = "اللاعب"
+                for u, _ in room_users.content:
+                    if u.id == target_id:
+                        display_name = f"@{u.username}"
+                        break
+                await self.highrise.chat(f"🔓 تم تحرير {display_name} من السجن بفضل الدعم في الحصالة!")
+            except:
+                await self.highrise.chat("🔓 تم تحرير لاعب من السجن بفضل الدعم في الحصالة!")
+            
             if self.spawn_position:
                 try:
                     await self.highrise.teleport(target_id, self.spawn_position)
@@ -88,6 +93,7 @@ class MyBot(BaseBot):
                     print(f"Teleport error: {e}")
 
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
+        """🪙 معالجة الدعم المباشر للبوت"""
         try:
             if sender.id in self.prisoners:
                 await self.release_prisoner_via_gold(sender.id)
@@ -95,16 +101,22 @@ class MyBot(BaseBot):
             print(f"Error in on_tip: {e}")
 
     async def on_room_tip(self, sender_id: str, tips: list[tuple[User, CurrencyItem]]) -> None:
+        """🪙 معالجة الدعم داخل برطمان إكراميات الغرفة الرسمي (الحصالة)"""
         try:
+            # التحقق مما إذا كان الشخص الذي ضغط ودفع مسجوناً ليتم الإفراج عنه فوراً
             if sender_id in self.prisoners:
                 await self.release_prisoner_via_gold(sender_id)
                 return
-            for user_obj, currency_item in tips:
-                if user_obj.id in self.prisoners:
-                    await self.release_prisoner_via_gold(user_obj.id)
-                    break
+            
+            # التحقق من قائمة اللاعبين داخل مصفوفة الإكراميات وإخراج أي مسجون مدعوم
+            for item in tips:
+                if isinstance(item, tuple) and len(item) > 0:
+                    user_obj = item[0]
+                    if hasattr(user_obj, 'id') and user_obj.id in self.prisoners:
+                        await self.release_prisoner_via_gold(user_obj.id)
+                        break
         except Exception as e:
-            print(f"Error in on_room_tip: {e}")
+            print(f"Error in on_room_tip array processing: {e}")
 
     async def on_user_move(self, user: User, pos: Position) -> None:
         if not hasattr(pos, 'x') or not hasattr(pos, 'z'):
@@ -112,12 +124,9 @@ class MyBot(BaseBot):
         current_x = round(pos.x, 2)
         current_z = round(pos.z, 2)
 
+        # حماية إضافية في حال ركض السجين لمنع خروجه وتدشين التحرير عبر الحصالة فقط
         if user.id in self.prisoners:
-            old_pos = self.player_positions.get(user.id)
-            if old_pos and len(old_pos) == 2:
-                if abs(current_x - old_pos[0]) > 0.03 or abs(current_z - old_pos[1]) > 0.03:
-                    await self.release_prisoner_via_gold(user.id)
-                    return
+            return
 
         if not self.game_active and not self.glass_game_active:
             return
@@ -127,6 +136,7 @@ class MyBot(BaseBot):
             self.player_positions[user.id] = (current_x, current_z)
             return
 
+        # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
         if self.game_active and not self.glass_game_active:
             if self.finish_position and self.spawn_position and user.id not in self.prisoners:
                 is_winner = False
@@ -160,25 +170,20 @@ class MyBot(BaseBot):
                 else:
                     self.player_positions[user.id] = (current_x, current_z)
 
+        # ---------------- اللعبة الثانية: الجسر الزجاجي (تم إصلاح ثغرة الركض) ----------------
         elif self.glass_game_active and not self.game_active:
             if user.id not in self.prisoners:
-                on_safe_side = False
+                # فحص خطي شامل ومباشر لجميع المربعات في نفس الوقت؛ إذا لامس اللاعب أي فخ زجاجي أثناء ركضه يتم القبض عليه فوراً
                 for key, saved_pos in self.glass_positions.items():
-                    if "_side" in key:
-                        if abs(current_x - round(saved_pos.x, 2)) <= 0.35 and abs(current_z - round(saved_pos.z, 2)) <= 0.35:
-                            on_safe_side = True
-                            break
-                if on_safe_side:
-                    self.player_positions[user.id] = (current_x, current_z)
-                    return
-
-                for key, saved_pos in self.glass_positions.items():
-                    if "_side" not in key:
+                    if "_side" not in key:  # فحص مربعات اليمين واليسار فقط
                         if abs(current_x - round(saved_pos.x, 2)) <= 0.95 and abs(current_z - round(saved_pos.z, 2)) <= 0.95:
                             if self.glass_traps.get(key) == "trap":
                                 await self.highrise.chat(f"💥 سقط @{user.username} في الزجاج الفخ إلى السجن!")
                                 await self.send_to_prison_with_effects(user)
-                                break
+                                return # إنهاء الفحص فوراً وسجنه لمنع الركض المستمر
+                
+                # إذا مر من الفخاخ ولم يسقط، نقوم بتحديث موقعه الطبيعي
+                self.player_positions[user.id] = (current_x, current_z)
 
     async def send_to_prison_with_effects(self, user: User):
         self.prisoners.add(user.id)
@@ -341,4 +346,48 @@ class MyBot(BaseBot):
     async def update_all_positions(self, room_users):
         for u, pos in room_users.content:
             if hasattr(pos, 'x'):
-                self.player_positions
+                self.player_positions[u.id] = (round(pos.x, 2), round(pos.z, 2))
+
+    async def game_loop(self):
+        try:
+            while self.game_active:
+                events = ["green_silent", "fake_signal", "red_silent"]
+                random.shuffle(events)
+                for current_event in events:
+                    if not self.game_active: 
+                        break
+                    room_users = await self.highrise.get_room_users()
+                    
+                    if current_event == "green_silent":
+                        self.light = "green"
+                        await self.highrise.chat("🟢 ضوء أخضر! انطلقوا الآن!")
+                        await asyncio.sleep(random.uniform(0.5, 1.9))
+                        self.freeze_check = True
+                        self.light = "red"
+                        await self.update_all_positions(room_users)
+                        await asyncio.sleep(0.4)
+                        self.freeze_check = False
+                        await asyncio.sleep(random.uniform(0.6, 1.8))
+
+                    elif current_event == "fake_signal":
+                        fake_msg = random.choice([
+                            "🛑 قف مكانك... amzح معكم تحركوا!",
+                            "🛑 استعدوا... الضوء أوشك أن يقلب!",
+                            "🛑 هل أنتم جاهزون للتوقف؟"
+                        ])
+                        self.light = "green"
+                        await self.highrise.chat(fake_msg)
+                        await asyncio.sleep(random.uniform(0.7, 1.9))
+
+                    elif current_event == "red_silent":
+                        self.freeze_check = True
+                        self.light = "red"
+                        await self.update_all_positions(room_users)
+                        await asyncio.sleep(0.4)
+                        self.freeze_check = False
+                        await asyncio.sleep(random.uniform(0.5, 1.9))
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.light = "red"
+            self.freeze_check = False
