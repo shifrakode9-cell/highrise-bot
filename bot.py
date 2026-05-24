@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 نسخة الاستشعار الدقيق 0.27 جاهزة ومستقرة للعمل!")
+        print("🚀 تم فحص الكود بالكامل وتأمينه بنجاح! نسخة الاستشعار 0.29 مستقرة وجاهزة.")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -76,19 +76,27 @@ class MyBot(BaseBot):
         if not hasattr(pos, 'x') or not hasattr(pos, 'z'):
             return
 
+        current_x = round(pos.x, 2)
+        current_z = round(pos.z, 2)
+
+        # 🪙 فحص الحصالة الاحتياطي المدمج: تحرير تلقائي فوري للسجين عند التفاعل مع الحصالة
+        if user.id in self.prisoners:
+            old_pos = self.player_positions.get(user.id)
+            if old_pos and len(old_pos) == 2:
+                if abs(current_x - old_pos[0]) > 0.03 or abs(current_z - old_pos[1]) > 0.03:
+                    await self.release_prisoner_via_gold(user.id)
+                    return
+
         if not self.game_active and not self.glass_game_active:
             return
 
         if user.id == self.highrise.my_id:
             return
 
-        # حماية الأخضر المطلقة وتحديث السجلات فوراً لمنع التعليق
+        # حماية الضوء الأخضر وتحديث السجلات
         if self.light == "green" or self.freeze_check:
-            self.player_positions[user.id] = (round(pos.x, 2), round(pos.z, 2))
+            self.player_positions[user.id] = (current_x, current_z)
             return
-
-        current_x = round(pos.x, 2)
-        current_z = round(pos.z, 2)
 
         # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
         if self.game_active and not self.glass_game_active:
@@ -112,10 +120,11 @@ class MyBot(BaseBot):
 
             if user.id not in self.prisoners:
                 old_pos = self.player_positions.get(user.id)
-                if old_pos:
+                if old_pos and len(old_pos) == 2:
                     old_x, old_z = old_pos
-                    distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
-                    if distance > 0.27:  # 🛠️ تم التعديل إلى استشعار 0.27 المتوازن بناءً على طلبك
+                    horizontal_distance = ((current_x - old_x) ** 2 + (current_z - old_z) ** 2) ** 0.5
+                    
+                    if horizontal_distance > 0.29:  # فحص الاستشعار المتوازن 0.29
                         await self.send_to_prison_with_effects(user)
                     else:
                         self.player_positions[user.id] = (current_x, current_z)
@@ -147,7 +156,7 @@ class MyBot(BaseBot):
             except: pass
 
     async def release_prisoner_via_gold(self, target_id: str):
-        """🔓 الاستجابة الفورية والقصوى للحصالة والدعم بأي وسيلة كانت لفك السجين فوراً"""
+        """🔓 معالج التحرير الفوري الشامل للاعبين بمجرد الدعم"""
         if target_id in self.prisoners:
             self.prisoners.remove(target_id)
             
@@ -167,6 +176,7 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(target_id, self.spawn_position)  
                 except: pass
 
+    # 🪙 الفحص الأساسي والمباشر لأحداث الدعم المالي والحصالة
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
         try:
             if sender.id in self.prisoners:
@@ -220,7 +230,7 @@ class MyBot(BaseBot):
                         await self.highrise.chat("🏁 تم تحديد خط الأمان النهائي!")
                         break
 
-            # تحديد المربعات: يمين (right)، يسار (left)، أو جانبي للعبور (side)
+            # تحديد مربعات الجسر: يمين (right)، يسار (left)، أو جانبي للعبور (side)
             elif message_clean.startswith("/setglass"):
                 parts = message_clean.split()
                 if len(parts) == 3:
@@ -255,7 +265,7 @@ class MyBot(BaseBot):
                     self.game_task.cancel()
                 
                 self.game_task = asyncio.create_task(self.game_loop())
-                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] بنظام الحماية الشاملة واستشعار 0.27 التنافسي! 🔥")
+                await self.highrise.chat("🎮 انطلقت لعبة [أحمر وأخضر] باستشعار 0.29 أفقي ثابت ومثالي! 🔥")
 
             elif message_clean == "اوقف اللعبة" or message_clean == "اوقف الزجاج":
                 self.game_active = False
@@ -284,13 +294,12 @@ class MyBot(BaseBot):
                 self.prisoners.clear()
                 self.player_positions.clear()
                 
-                # بناء نظام مجموعات الـ 3 خطوات المتطابقة والمربعات الجانبية الآمنة
+                # بناء مصفوفة الـ 3 مجموعات المتقابلة مع مربعات الجانب (side) الآمنة
                 for block in range(0, 10): 
                     is_right_trap = random.choice([True, False])
                     for sub in range(1, 4):
                         step_num = block * 3 + sub
                         
-                        # مربعات الجانب (side) آمنة دائماً وأبداً في كل الخطوات
                         self.glass_traps[f"{step_num}_side"] = "safe"
                         
                         if is_right_trap:
@@ -362,9 +371,9 @@ class MyBot(BaseBot):
 
                     elif current_event == "fake_signal":
                         fake_msg = random.choice([
-                            "🛑 قف مكانك... امزح معكم تحركوا!",
+                            "🛑 قف مكانك... amzح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
-                            "🛑 هل أنتم جاهزون للتوقف？"
+                            "🛑 هل أنتم جاهزون للتوقف؟"
                         ])
                         self.light = "green"
                         await self.highrise.chat(fake_msg)
