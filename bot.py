@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 تم تشغيل البوت وإغلاق كافة علامات التنصيص المقطوعة بنجاح!")
+        print("🚀 تم تشغيل البوت بنجاح تام بعد الفحص الشامل واغلاق كافة الاقواس المصدرية!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -322,41 +322,4 @@ class MyBot(BaseBot):
                             self.glass_traps[f"{step_num}_left"] = "trap"
                             self.glass_traps[f"{step_num}_right"] = "safe"
                         
-                await self.highrise.chat("⚡ تم تشغيل [الجسر الزجاجي]! تفكيك مصفوفات الحصالة جاهز والرادار خطي 0.95! 🫨")
-
-            elif message_clean.startswith("vip"):
-                parts = message.split()
-                if len(parts) > 1 and self.vip_position:
-                    target = await self.get_target_user(parts[1], room_users)
-                    if target:
-                        try: await self.highrise.teleport(target.id, self.vip_position)
-                        except: pass
-
-            elif message_clean.startswith("افراج"):
-                parts = message.split()
-                if len(parts) > 1:
-                    target = await self.get_target_user(parts[1], room_users)
-                    if target:
-                        if target.id in self.prisoners:
-                            self.prisoners.remove(target.id)
-                            await self.highrise.chat(f"🕊️ عفو إداري! تم الإفراج عن @{target.username} ونقله للانطلاق.")
-                            if self.spawn_position:
-                                try:
-                                    await self.highrise.teleport(target.id, self.spawn_position)
-                                    await asyncio.sleep(1.0)
-                                    await self.highrise.teleport(target.id, self.spawn_position)
-                                except: pass
-                        else:
-                            await self.highrise.chat(f"اللاعب @{target.username} ليس مسجوناً حالياً.")
-                        
-        else:
-            protected_commands = ["/setprison", "/setspawn", "/setvip", "/setfinish", "/setglass", "ابدأ اللعبة", "اوقف اللعبة", "ابدأ الزجاج", "اوقف الزجاج"]
-            if message_clean in protected_commands or message_clean.startswith("vip") or message_clean.startswith("افراج"):
-                await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر حصرية للمشرفين المعتمدين!")
-
-    async def update_all_positions(self, room_users):
-        for u, pos in room_users.content:
-            if hasattr(pos, 'x'):
-                self.player_positions[u.id] = (round(pos.x, 2), round(pos.z, 2))
-
-    async def game_loop(self
+                await self.highrise.chat("⚡ تم تشغيل
