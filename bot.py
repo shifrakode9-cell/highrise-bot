@@ -40,7 +40,7 @@ class MyBot(BaseBot):
         }
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 تم تفعيل كود الحصالة المفكك برمجياً بنجاح مع رادار لقط الركض السريع المطور!")
+        print("🚀 تم تشغيل البوت بنجاح بعد إصلاح خطأ خطوط الاكواد وتنظيف الـ Syntax!")
 
     async def has_permissions(self, user: User) -> bool:
         username_lower = user.username.lower()
@@ -73,7 +73,7 @@ class MyBot(BaseBot):
             except: pass
 
     async def release_prisoner_via_gold(self, target_id: str):
-        """🔓 المعالج الجذري لتحرير السجين ونقله فوراً خطوة البداية"""
+        """🔓 معالج التحرير الفوري الشامل للحصالة"""
         if target_id in self.prisoners:
             self.prisoners.remove(target_id)
             
@@ -102,15 +102,13 @@ class MyBot(BaseBot):
         except Exception as e:
             print(f"Error in on_tip handler: {e}")
 
-    # 🪙 [الحصالة - إصلاح نهائي] تفكيك مصفوفة برطمان إكراميات الغرفة الرسمي وقراءة المتبرعين
+    # 🪙 [الحصالة] تفكيك مصفوفة برطمان إكراميات الغرفة الرسمي وقراءة المتبرعين
     async def on_room_tip(self, sender_id: str, tips: list[tuple[User, CurrencyItem]]) -> None:
         try:
-            # الفحص المباشر لـ sender_id المرسل من السيرفر
             if sender_id in self.prisoners:
                 await self.release_prisoner_via_gold(sender_id)
                 return
 
-            # فحص وتفكيك قائمة النصائح المرفقة للتأكد من التقاط المعرف الصحيح لدافع الذهب
             for user_obj, currency_item in tips:
                 if user_obj.id in self.prisoners:
                     await self.release_prisoner_via_gold(user_obj.id)
@@ -177,7 +175,6 @@ class MyBot(BaseBot):
         # ---------------- اللعبة الثانية: رادار الجسر الزجاجي الخطي الذكي ----------------
         elif self.glass_game_active and not self.game_active:
             if user.id not in self.prisoners:
-                # حماية المربعات الجانبية الحرة من التداخل الحسي
                 on_safe_side = False
                 for key, saved_pos in self.glass_positions.items():
                     if "_side" in key:
@@ -239,7 +236,7 @@ class MyBot(BaseBot):
 
             elif message_clean == "/setvip":
                 for u, pos in room_users.content:
-                    if u.id == user.id navigate and isinstance(pos, Position):
+                    if u.id == user.id and isinstance(pos, Position):
                         self.vip_position = pos
                         await self.highrise.chat("💎 تم تحديد منصة الـ VIP!")
                         break
@@ -387,22 +384,4 @@ class MyBot(BaseBot):
                         fake_msg = random.choice([
                             "🛑 قف مكانك... amzح معكم تحركوا!",
                             "🛑 استعدوا... الضوء أوشك أن يقلب!",
-                            "🛑 هل أنتم جاهزون للتوقف؟"
-                        ])
-                        self.light = "green"
-                        await self.highrise.chat(fake_msg)
-                        await asyncio.sleep(random.uniform(0.7, 1.9))
-
-                    elif current_event == "red_silent":
-                        self.freeze_check = True
-                        self.light = "red"
-                        await self.update_all_positions(room_users)
-                        await asyncio.sleep(0.4)
-                        self.freeze_check = False
-                        await asyncio.sleep(random.uniform(0.5, 1.9))
-                        
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self.light = "red"
-            self.freeze_check = False
+                            "🛑 هل أنتم جاهز
