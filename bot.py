@@ -355,3 +355,8 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ عذراً @{user.username}، هذه الأوامر حصرية للمشرفين المعتمدين!")
 
     async def update_all_positions(self, room_users):
+        for u, pos in room_users.content:
+            if hasattr(pos, 'x'):
+                self.player_positions[u.id] = (round(pos.x, 2), round(pos.z, 2))
+
+    async def game_loop(self
