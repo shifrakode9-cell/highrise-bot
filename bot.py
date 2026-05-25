@@ -1,6 +1,22 @@
 import asyncio
 import random
+from threading import Thread
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, User, CurrencyItem, Position
+
+# 🌐 سيرفر ويب مدمج بدون مكتبات خارجية لإرضاء Render ومنع الـ Restart المستمر
+class SimpleWebHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write("🤖 البوت مستقر ويعمل بدون أخطاء!".encode('utf-8'))
+    def log_message(self, format, *args):
+        return # لمنع زحمة السطور في الـ Logs
+
+def run_web_server():
+    server = HTTPServer(('0.0.0.0', 8080), SimpleWebHandler)
+    server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -98,7 +114,6 @@ class MyBot(BaseBot):
             elif msg == "سحب الغرفة":
                 try:
                     room_users = await self.highrise.get_room_users()
-                    # البحث عن موقع المشرف أولاً
                     my_pos = None
                     for u, pos in room_users.content:
                         if u.id == user.id:
@@ -107,13 +122,10 @@ class MyBot(BaseBot):
                     
                     if my_pos:
                         await self.highrise.chat("⚡ جاري سحب جميع الحضور إلى موقع الإدارة...")
-                        # سحب الجميع ما عدا البوت نفسه والمشرف
                         for u, pos in room_users.content:
                             if u.id != self.id and u.id != user.id:
-                                try:
-                                    await self.highrise.teleport(u.id, my_pos)
-                                except:
-                                    pass
+                                try: await self.highrise.teleport(u.id, my_pos)
+                                except: pass
                     else:
                         await self.highrise.chat("❌ تعذر تحديد موقعك الحالي لسحب الغرفة.")
                 except Exception as e:
@@ -146,7 +158,7 @@ class MyBot(BaseBot):
                 await self.highrise.chat("🚨 <color=#FF3333><b>[ جولة تنبؤ الحضور والمشرفين ]</b></color> 🚨")
                 await self.highrise.chat(f"📦 <color=#FFD700>المتبقي {len(remaining_boxes)} صناديق فقط والمفاجأة الكبرى بالداخل!</color>")
                 await self.highrise.chat(f"الصناديق المتاحة هي: {remaining_boxes}")
-                await self.highrise.chat("👥 البوت جاهز لتلقي التوقعات! من يريد الاشتراك وتوقع الصندوق؟ (أمامكم 45 ثانية للبدء التلقائي)")
+                await self.highrise.chat("👥 البوت جاهز لتلقي التوقعات! من يريد الاشتراك وتوقع الصندوق? (أمامكم 45 ثانية للبدء التلقائي)")
                 
                 await asyncio.sleep(45)
                 if self.prediction_active:
@@ -175,7 +187,7 @@ class MyBot(BaseBot):
                 else:
                     await self.highrise.chat(f"⛔ @{user.username}، توقعك غير محسوب! يرجى الاشتراك أولاً لتفعيل خانة التوقع الخاص بك.")
 
-    # 3. فتح الصناديق والاحتفال التلقائي
+    # 3. فتح الصناديق والاحتفال الجماعي
     async def reveal_prediction_results(self):
         self.prediction_active = False
         await self.highrise.chat("🔒 <color=#FF3333>انتهى الوقت! تم قفل باب التوقعات، وبدء الحسم والنتائج...</color>")
@@ -253,3 +265,7 @@ class MyBot(BaseBot):
             await self.highrise.chat(f"👑 مبروك للفائزين: ({', '.join(winners_list)})! يرجى من الإدارة تسليمهم الجائزة الخاصة بهم المستحقة يدوياً.")
         else:
             await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح للجائزة الكبرى! ترحل الجوائز للجولة القادمة.")
+
+# تشغيل سيرفر الويب الذكي والمدمج في الخلفية
+if __name__ == '__main__':
+    Thread(target=run_web_server, daemon=True).start()
