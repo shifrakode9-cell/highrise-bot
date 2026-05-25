@@ -1,6 +1,18 @@
 import asyncio
 import random
+from threading import Thread
+from flask import Flask
 from highrise import BaseBot, User, CurrencyItem, Position
+
+# 🌐 إنشاء سيرفر ويب مصغر لإبقاء Render مستقراً ومستجيباً
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "البوت يعمل بنجاح ومستقر! 🤖"
+
+def run_web_server():
+    app.run(host='0.0.0.0', port=8080)
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -23,8 +35,8 @@ class MyBot(BaseBot):
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
-        # 🟢 إضافة ميزة الترحيب والتعريف باللعبة تلقائياً عند دخول أي شخص
-        await self.highrise.chat(f"أهلاً بك @{user.username} في غرفتنا! 🎮 نحن نلعب لعبة الصناديق المثيرة. ادفع 5 ذهبات لتشترك وتصعد للمنصة فوراً!")
+        # الترحيب الفوري والتعريف باللعبة
+        await self.highrise.chat(f"أهلاً بك @{user.username} في غرفتنا! 🎮 نحن نلعب لعبة الصناديق. ادفع 5 ذهبات لتشترك وتصعد للمنصة فوراً!")
 
     async def on_user_leave(self, user: User) -> None:
         if user.id in self.room_users:
@@ -35,7 +47,6 @@ class MyBot(BaseBot):
         if receiver.id != self.id or tip.amount < 5:
             return
 
-        # في المرحلة الأساسية: البوت يستشعر ويسحب المشترك للمنصة فوراً
         if not self.game_active and not self.prediction_active:
             if len(self.players_paid) >= self.max_players:
                 await self.highrise.chat(f"⚠️ @{sender.username} العدد مكتمل حالياً! انتظر الجولة القادمة.")
@@ -44,15 +55,13 @@ class MyBot(BaseBot):
             self.players_paid[sender.id] = sender.username
             await self.highrise.chat(f"✅ تم تسجيل اشتراك @{sender.username} | عدد المشتركين الحاليين: {len(self.players_paid)}/{self.max_players}.")
             
-            # 🚀 سحب المشترك تلقائياً للمنصة + طلب الرقم وحفظه فوراً
+            # سحب المشترك تلقائياً للمنصة + طلب الرقم وحفظه فوراً
             try:
                 await self.highrise.teleport(sender.id, self.bot_platform_position)
-                # 🟢 البوت يطلب الرقم فور السحب ويحفظه في الذاكرة لحين بدء اللعبة
                 await self.highrise.chat(f"مبارك السحب يا @{sender.username}! من فضلك اختر رقم صندوقك الآن (1-10) سأحفظه عندي لحين بدء الجولة.")
             except Exception as e:
                 print(f"فشل سحب اللاعب للمنصة: {e}")
 
-        # في مرحلة التوقعات: يستقبل الاشتراك "دون سحب الشخص" لمنع الزحمة
         elif self.prediction_active:
             self.predictions[sender.id] = {"username": sender.username, "box": None}
             await self.highrise.chat(f"🟢 تم تفعيل التوقع الخاص بك يا @{sender.username}! اكتب رقم صندوقك الآن في الشات.")
@@ -62,18 +71,17 @@ class MyBot(BaseBot):
         msg = message.strip()
         is_admin = user.username in ["qais29", "sweet_Lulus"]
 
-        # 🟢 استقبال أرقام الصناديق من المتسابقين المسحوبين للمنصة وحفظها سراً لحين بدء الجولة
+        # استقبال أرقام الصناديق من المتسابقين المسحوبين للمنصة وحفظها سراً لحين بدء الجولة
         if user.id in self.players_paid and not self.game_active and not self.prediction_active:
             if msg.isdigit():
                 box_num = int(msg)
                 if 1 <= box_num <= 10:
-                    # حفظ التوقع في قائمة التوقعات قبل بداية الجولة رسميًا
                     self.predictions[user.id] = {"username": user.username, "box": box_num}
                     await self.highrise.chat(f"📌 تم حفظ الصندوق رقم [{box_num}] لـ @{user.username} بنجاح.")
                     return
 
         if is_admin:
-            # 📌 أمر ضبط وتحديد المنصة (تم إصلاحه ليعمل مباشرة بدون شروط معقدة)
+            # أمر ضبط وتحديد المنصة (تم إصلاحه ليعمل مباشرة وبسرعة)
             if msg == "الموقع":
                 try:
                     room_users = await self.highrise.get_room_users()
@@ -87,26 +95,24 @@ class MyBot(BaseBot):
                     print(f"خطأ أثناء تحديد المنصة: {e}")
                 return
 
-            # 📌 أمر بدء اللعبة الأساسية وإعلان أرقام المشتركين المحفوظة فوراً
+            # أمر بدء اللعبة الأساسية وإعلان أرقام المشتركين المحفوظة فوراً
             if msg == "ابدأ" and not self.game_active:
-                if len(self.players_paid) < 1:  # جعلناها 1 للتجربة الفردية وسهولة الاختبار
+                if len(self.players_paid) < 1:
                     await self.highrise.chat("❌ لا يمكن بدء اللعبة، عدد المشتركين قليل جداً!")
                     return
                 self.game_active = True
                 await self.highrise.chat("🎮 <color=#FFD700>بدأت الجولة الرسمية! الصناديق الثابتة مغلقة بالكامل الآن!</color>")
                 
-                # إظهار الأرقام التي تم حفظها من اللاعبين فور سحبهم
                 for uid, info in self.predictions.items():
                     if info["box"] is not None:
                         await self.highrise.chat(f"👤 المتسابق @{info['username']} يشارك بالصندوق رقم: {info['box']}")
 
-                # التوزيع المعتمد (50، 10، خمستين، وواحدين، و4 فارغ)
                 all_contents = ["50", "10", "5", "5", "1", "1", "فارغ", "فارغ", "فارغ", "فارغ"]
                 random.shuffle(all_contents)
                 self.boxes = {i+1: all_contents[i] for i in range(10)}
                 return
             
-            # 📌 الأمر المنفصل لبدء مرحلة التوقعات وحسمها تلقائياً بعد المهلة
+            # الأمر المنفصل لبدء مرحلة التوقعات وحسمها تلقائياً بعد المهلة
             elif msg == "توقع" and self.game_active and not self.prediction_active:
                 remaining_boxes = list(self.boxes.keys())
                 self.game_active = False
@@ -122,7 +128,7 @@ class MyBot(BaseBot):
                     await self.reveal_prediction_results()
                 return
                 
-            # 📌 أمر التصفير وبدء لعبة جديدة كلياً
+            # أمر التصفير وبدء لعبة جديدة كلياً
             elif msg == "انتهى":
                 self.game_active = False
                 self.prediction_active = False
@@ -132,7 +138,6 @@ class MyBot(BaseBot):
                 await self.highrise.chat("🔄 <color=#00FF00><b>[ تم إنهاء اللعبة وتصفيرها بالكامل ] تم خلط الجوائز عشوائياً وفتح باب الاشتراك لجولة جديدة كلياً!</b></color>")
                 return
 
-        # استقبال أرقام التوقعات الإضافية أثناء جولة "توقع" الحضور
         if self.prediction_active:
             if msg.isdigit() and int(msg) in self.boxes:
                 box_num = int(msg)
@@ -223,3 +228,7 @@ class MyBot(BaseBot):
             await self.highrise.chat(f"👑 مبروك للفائزين: ({', '.join(winners_list)})! يرجى من الإدارة تسليمهم الجائزة الخاصة بهم المستحقة يدوياً.")
         else:
             await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح للجائزة الكبرى! ترحل الجوائز للجولة القادمة.")
+
+# تشغيل سيرفر الويب في الخلفية قبل تشغيل البوت الأساسي
+if __name__ == '__main__':
+    Thread(target=run_web_server).start()
