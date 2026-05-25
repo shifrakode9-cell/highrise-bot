@@ -16,7 +16,7 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 متصل!")
+        print("🤖 البوت متصل ومستقر بداخل العالم الجديد!")
 
     # 🟢 الترحيب التلقائي المضمون فور دخول أي لاعب
     async def on_user_join(self, user: User, position: Position) -> None:
