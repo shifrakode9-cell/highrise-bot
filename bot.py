@@ -1,7 +1,23 @@
 import asyncio
 import random
+import sys
+from threading import Thread
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
+
+# 🌐 سيرفر ويب مدمج لحماية منصة ريندر من الهبوط والـ Ports
+class RenderHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write("🤖 البوت متصل ومستقر بداخل العالم الجديد!".encode('utf-8'))
+    def log_message(self, format, *args): return
+
+def run_web_server():
+    server = HTTPServer(('0.0.0.0', 10000), RenderHandler)
+    server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -16,25 +32,20 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البوت متصل ومستقر بداخل العالم الجديد!")
+        print("🤖 تم اختراق خادم العوالم بنجاح والبوت في الغرفة الآن!")
 
-    # 🟢 الترحيب التلقائي المضمون فور دخول أي لاعب
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
         try:
             await asyncio.sleep(2)
             await self.highrise.chat(f"أهلاً بك @{user.username} في غرفتنا! 🎮 نحن نلعب لعبة الصناديق المثيرة. ادفع 5 ذهبات لتشترك وتصعد للمنصة فوراً!")
-        except:
-            pass
+        except: pass
 
     async def on_user_leave(self, user: User) -> None:
-        if user.id in self.room_users:
-            self.room_users.remove(user.id)
+        if user.id in self.room_users: self.room_users.remove(user.id)
 
-    # 🟢 نظام التيب والسحب للمنصة
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
-        if receiver.id != self.id or tip.amount < 5:
-            return
+        if receiver.id != self.id or tip.amount < 5: return
         if not self.game_active and not self.prediction_active:
             if len(self.players_paid) >= self.max_players:
                 await self.highrise.chat(f"⚠️ @{sender.username} العدد مكتمل حالياً!")
@@ -44,10 +55,8 @@ class MyBot(BaseBot):
             try:
                 await self.highrise.teleport(sender.id, self.bot_platform_position)
                 await self.highrise.chat(f"مبارك السحب يا @{sender.username}! اختر رقم صندوقك الآن (1-10)")
-            except:
-                pass
+            except: pass
 
-    # 🟢 نظام قراءة الشات والاستجابة الفورية للأوامر
     async def on_chat(self, user: User, message: str) -> None:
         msg = message.strip()
         is_admin = user.username.lower() in ["qais29", "sweet_lulus", "@qais29", "@sweet_lulus"]
@@ -61,7 +70,6 @@ class MyBot(BaseBot):
                     return
 
         if is_admin:
-            # 📌 أمر سحب البوت إليك وتثبيت موقع المنصة
             if msg == "تعال" or msg == "الموقع":
                 try:
                     response = await self.highrise.get_room_users()
@@ -71,11 +79,9 @@ class MyBot(BaseBot):
                             await self.highrise.teleport(self.id, pos)
                             await self.highrise.chat(f"🏃‍♂️ تم سحب البوت بنجاح يا @{user.username} وتثبيت الموقع هنا!")
                             return
-                except:
-                    pass
+                except: pass
                 return
 
-            # 📌 أمر سحب الغرفة بالكامل لموقعك
             elif msg == "سحب الغرفة":
                 try:
                     response = await self.highrise.get_room_users()
@@ -88,15 +94,11 @@ class MyBot(BaseBot):
                         await self.highrise.chat("⚡ جاري سحب الجميع...")
                         for room_user, pos in response.content:
                             if room_user.id != self.id and room_user.id != user.id:
-                                try:
-                                    await self.highrise.teleport(room_user.id, my_pos)
-                                except:
-                                    pass
-                except:
-                    pass
+                                try: await self.highrise.teleport(room_user.id, my_pos)
+                                except: pass
+                except: pass
                 return
 
-            # 📌 أمر بدء اللعبة الرسمي
             elif msg == "ابدأ" and not self.game_active:
                 if len(self.players_paid) < 1:
                     await self.highrise.chat("❌ لا يوجد مشتركين لبدء اللعبة!")
@@ -108,18 +110,15 @@ class MyBot(BaseBot):
                 self.boxes = {i+1: all_contents[i] for i in range(10)}
                 return
             
-            # 📌 أمر التوقعات
             elif msg == "توقع" and self.game_active and not self.prediction_active:
                 remaining_boxes = list(self.boxes.keys())
                 self.game_active = False
                 self.prediction_active = True
                 await self.highrise.chat(f"🚨 جولة التوقعات المتاحة: {remaining_boxes}. أمامكم 45 ثانية!")
                 await asyncio.sleep(45)
-                if self.prediction_active:
-                    await self.reveal_prediction_results()
+                if self.prediction_active: await self.reveal_prediction_results()
                 return
                 
-            # 📌 أمر إنهاء وتصفير اللعبة
             elif msg == "انتهى":
                 self.game_active = False
                 self.prediction_active = False
@@ -143,13 +142,24 @@ class MyBot(BaseBot):
             if content == "50":
                 await self.highrise.chat(f"📦 صندوق [{box_num}] لـ ({players_str}) -> 🎉 الرابح الأكبر بـ {final_prize} نقطة!")
                 for uid, info in self.predictions.items():
-                    if info.get("box") == box_num:
-                        winners_list.append(info["username"])
+                    if info.get("box") == box_num: winners_list.append(info["username"])
             else:
                 await self.highrise.chat(f"📦 صندوق [{box_num}] لـ ({players_str}) -> [{content}]")
             await asyncio.sleep(2)
 
-        if winners_list:
-            await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
-        else:
-            await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
+        if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
+        else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
+
+if __name__ == '__main__':
+    # تشغيل سيرفر الويب المدمج لراحة ريندر
+    Thread(target=run_web_server, daemon=True).start()
+    
+    # ربط مكتبة اللعبة بالمعرفات الجديدة المدمجة
+    from highrise.__main__ import main
+    sys.argv = [
+        "highrise", 
+        "bot:MyBot", 
+        "6a04970a90ee23ef0aaff651", # الـ ownedRoomId الصحيح لغرفتك
+        "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"
+    ]
+    asyncio.run(main())
