@@ -1,302 +1,206 @@
 import asyncio
 import random
-from highrise import BaseBot, Position
-from highrise.models import SessionMetadata, User, CurrencyItem
+from highrise import BaseBot, User, CurrencyItem, Position
 
+# تم ضبط اسم الكلاس ليكون MyBot ليتوافق تماماً مع إعدادات الـ Settings لديك
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
-        self.game_active = False       
-        self.glass_game_active = False 
-        self.light = "red"
+        # إعدادات اللعبة وحفظ البيانات
+        self.game_active = False
+        self.prediction_active = False
+        self.players_paid = {}      
+        self.predictions = {}       
+        self.boxes = {}             
+        self.max_players = 5
+        self.room_users = set()  # لحفظ متواجدي الغرفة من أجل الدبكة الجماعية
         
-        self.prison_position = None
-        self.spawn_position = None
-        self.vip_position = None
-        self.finish_position = None
-        self.door_position = None  
-        
-        self.glass_positions = {}  
-        self.glass_traps = {}      
-        
-        self.player_positions = {}
-        self.prisoners = set()  
-        self.game_task = None
-        self.freeze_check = False  
-        
-        self.dance_moves = {
-            "1": "dance-tiktok8", "2": "dance-russian", "3": "dance-weird",
-            "4": "dance-shoppingcart", "5": "dance-praise", "6": "emote-think",
-            "7": "emote-wave", "8": "dance-blackpink", "9": "dance-drop",
-            "10": "dance-handsup", "11": "dance-flex", "12": "emote-shy",
-            "13": "dance-vogue", "14": "emote-sad", "15": "dance-orangejust",
-            "16": "emote-laughing", "17": "dance-tiktok2", "18": "emote-celebrate",
-            "19": "dance-macarena", "20": "emote-charging"
-        }
+        # ⚠️ إحداثيات الغرفة - قم بتغيير الأرقام لتناسب تصميم غرفتك بدقة
+        # الـ Y هو الارتفاع، تأكد من ضبطه ليقف البوت فوق المنصة تماماً
+        self.bot_platform_position = Position(2.5, 4.0, 3.5) 
+        self.jail_position = Position(5.0, 0.0, 5.0)         
+        self.winner_position = Position(10.0, 4.0, 10.0)     
 
-    async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🚀 Bot started. Code structure fully checked.")
-
-    async def has_permissions(self, user: User) -> bool:
-        username_lower = user.username.lower()
-        if username_lower in ["qais29", "sweet_lulus"]:
-            return True
+    # حدث الدخول الفوري لوضع البوت على المنصة لكي يراه الجميع
+    async def on_start(self, session_metadata) -> None:
+        print("🤖 البوت متصل بنجاح وجاهز للعمل!")
         try:
-            permissions = await self.highrise.get_room_privileges(user.id)
-            if permissions.content.moderator or permissions.content.designer:
-                return True
+            # النقل الفوري للبوت إلى منصته الخاصة عند بدء التشغيل
+            await self.highrise.teleport(self.id, self.bot_platform_position)
         except Exception as e:
-            print(f"Error checking privileges: {e}")
-        return False
+            print(f"فشل نقل البوت للمنصة، تحقق من الإحداثيات: {e}")
 
-    async def get_target_user(self, target_name: str, room_users):
-        clean_name = target_name.replace("@", "").strip().lower()
-        for u, _ in room_users.content:
-            if u.username.lower() == clean_name:
-                return u
-        return None
-
+    # تسجيل الحاضرين للدبكة الجماعية
     async def on_user_join(self, user: User, position: Position) -> None:
-        if hasattr(position, 'x') and hasattr(position, 'z'):
-            self.player_positions[user.id] = (round(position.x, 2), round(position.z, 2))
-        
-        if user.id in self.prisoners and self.prison_position:
-            await asyncio.sleep(2.0)
-            try: 
-                await self.highrise.teleport(user.id, self.prison_position)
-            except: 
-                pass
+        self.room_users.add(user.id)
 
-    async def release_prisoner_via_gold(self, target_id: str):
-        """🔓 إخراج السجين فوراً عند الدعم"""
-        if target_id in self.prisoners:
-            self.prisoners.remove(target_id)
-            await self.highrise.chat("🔓 شكرًا للدعم! تم تحرير اللاعب للبداية.")
-            if self.spawn_position:
-                try:
-                    await self.highrise.teleport(target_id, self.spawn_position)
-                    await asyncio.sleep(0.4)
-                    await self.highrise.teleport(target_id, self.spawn_position)
-                except:
-                    pass
+    async def on_user_leave(self, user: User) -> None:
+        if user.id in self.room_users:
+            self.room_users.remove(user.id)
 
+    # 1. نظام الحصالة الذكي (استقبال الـ 5 ذهبات والترحيب والتسجيل)
     async def on_tip(self, sender: User, receiver: User, tip: CurrencyItem) -> None:
-        """🪙 رصد دعم الذهب المباشر للبوت"""
-        try:
-            if sender.id in self.prisoners:
-                await self.release_prisoner_via_gold(sender.id)
-        except Exception as e:
-            print(f"Error in on_tip: {e}")
+        if receiver.id != self.id or tip.amount != 5:
+            return
 
-    async def on_room_tip(self, sender_id: str, tips: list) -> None:
-        """🪙 رصد دعم الحصالة الجماعية للغرفة"""
-        try:
-            if sender_id in self.prisoners:
-                await self.release_prisoner_via_gold(sender_id)
+        # جولة الاشتراك الأولي للمتسابقين
+        if not self.game_active and not self.prediction_active:
+            if len(self.players_paid) >= self.max_players:
+                await self.highrise.chat(f"⚠️ @{sender.username} العدد مكتمل حالياً! انتظر الجولة القادمة.")
                 return
-            for item in tips:
-                if hasattr(item, 'user') and item.user.id in self.prisoners:
-                    await self.release_prisoner_via_gold(item.user.id)
-                    break
-                elif isinstance(item, tuple) and len(item) > 0 and item[0].id in self.prisoners:
-                    await self.release_prisoner_via_gold(item[0].id)
-                    break
-        except Exception as e:
-            print(f"Error in on_room_tip: {e}")
+            
+            self.players_paid[sender.id] = sender.username
+            await self.highrise.chat(f"✅ تم تسجيل @{sender.username} | عدد المسجلين الحاليين: {len(self.players_paid)}/{self.max_players}. ننتظر أمر الإدارة لبدء اللعبة.")
 
-    async def on_user_move(self, user: User, pos: Position) -> None:
-        if not hasattr(pos, 'x') or not hasattr(pos, 'z'):
-            return
-        current_x = round(pos.x, 2)
-        current_z = round(pos.z, 2)
+        # جولة التوقعات الأخيرة
+        elif self.prediction_active:
+            self.predictions[sender.id] = {"username": sender.username, "box": None}
+            await self.highrise.chat(f"🟢 تم تفعيل توقعك يا @{sender.username}! اكتب رقم صندوقك الآن في الشات.")
 
-        if user.id in self.prisoners:
-            return
-
-        if not self.game_active and not self.glass_game_active:
-            return
-        if user.id == self.highrise.my_id:
-            return
-
-        # ---------------- اللعبة الأولى: أحمر وأخضر ----------------
-        if self.game_active and not self.glass_game_active:
-            if self.light == "green" or self.freeze_check:
-                self.player_positions[user.id] = (current_x, current_z)
-                return
-
-            if self.finish_position and self.spawn_position and user.id not in self.prisoners:
-                is_winner = False
-                if abs(self.finish_position.x - self.spawn_position.x) > abs(self.finish_position.z - self.spawn_position.z):
-                    if (self.finish_position.x >= self.spawn_position.x and current_x >= self.finish_position.x - 0.5) or \
-                       (self.finish_position.x < self.spawn_position.x and current_x <= self.finish_position.x + 0.5):
-                        is_winner = True
-                else:
-                    if (self.finish_position.z >= self.spawn_position.z and current_z >= self.finish_position.z - 0.5) or \
-                       (self.finish_position.z < self.spawn_position.z and current_z <= self.finish_position.z + 0.5):
-                        is_winner = True
-
-                if is_winner:
-                    await self.highrise.chat(f"🎉 مبروك الفوز @{user.username}!")
-                    if self.vip_position:
-                        try: await self.highrise.teleport(user.id, self.vip_position)
-                        except: pass
-                    return
-
-            old_pos = self.player_positions.get(user.id)
-            if old_pos and len(old_pos) == 2:
-                horizontal_distance = ((current_x - old_pos[0]) ** 2 + (current_z - old_pos[1]) ** 2) ** 0.5
-                if horizontal_distance > 0.29:  
-                    await self.send_to_prison_with_effects(user)
-                else:
-                    self.player_positions[user.id] = (current_x, current_z)
-            else:
-                self.player_positions[user.id] = (current_x, current_z)
-
-        # ---------------- اللعبة الثانية: الجسر الزجاجي (رادار الحماية الشامل) ----------------
-        elif self.glass_game_active and not self.game_active:
-            for key, saved_pos in self.glass_positions.items():
-                if self.glass_traps.get(key) == "trap":
-                    distance = ((current_x - round(saved_pos.x, 2)) ** 2 + (current_z - round(saved_pos.z, 2)) ** 2) ** 0.5
-                    if distance <= 1.50:  
-                        await self.highrise.chat(f"💥 سقط @{user.username} في الفخ!")
-                        await self.send_to_prison_with_effects(user)
-                        return
-            self.player_positions[user.id] = (current_x, current_z)
-
-    async def send_to_prison_with_effects(self, user: User):
-        self.prisoners.add(user.id)
-        try: 
-            await self.highrise.send_emote("emote-sad", user.id)
-        except: 
-            pass
-        await asyncio.sleep(2.0) 
-        if self.prison_position:
-            try: await self.highrise.teleport(user.id, self.prison_position)
-            except: pass
-
+    # 2. قراءة الشات (الأوامر الخاصة بك وبالمشرفين + فحص أرقام التوقعات)
     async def on_chat(self, user: User, message: str) -> None:
-        message_clean = message.strip().lower()
-        if message_clean in self.dance_moves:
-            try: await self.highrise.send_emote(self.dance_moves[message_clean], user.id)
-            except: pass
-            return
+        msg = message.strip()
+        
+        # ⚠️ استبدل الأسماء هنا بأسماء حساباتكم بدقة في اللعبة (الحروف الكبيرة والصغيرة تفرق)
+        is_admin = user.username in ["Qais", "Owner_Name", "Admin1"]
 
-        if await self.has_permissions(user):
-            room_users = await self.highrise.get_room_users()
+        if is_admin:
+            if msg == "/start" and not self.game_active:
+                if len(self.players_paid) < 2:
+                    await self.highrise.chat("❌ لا يمكن بدء اللعبة، عدد المسجلين قليل جداً!")
+                    return
+                await self.start_main_game()
+                return
+                
+            elif msg == "/end" and self.prediction_active:
+                await self.reveal_prediction_results()
+                return
 
-            if message_clean == "/setprison":
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.prison_position = pos
-                        await self.highrise.chat("🔒 تم تحديد موقع السجن بنجاح!")
-                        break
-            elif message_clean == "/setspawn":
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.spawn_position = pos
-                        await self.highrise.chat("🟩 تم تحديد خط الانطلاق بنجاح!")
-                        break
-            elif message_clean == "/setvip":
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.vip_position = pos
-                        await self.highrise.chat("💎 تم تحديد منصة الـ VIP!")
-                        break
-            elif message_clean == "/setfinish":
-                for u, pos in room_users.content:
-                    if u.id == user.id and isinstance(pos, Position):
-                        self.finish_position = pos
-                        await self.highrise.chat("🏁 تم تحديد خط النهاية بنجاح!")
-                        break
-            elif message_clean.startswith("/setglass"):
-                parts = message_clean.split()
-                if len(parts) == 3:
-                    step = parts[1]     
-                    direction = parts[2]  
-                    tile_id = None
-                    if direction in ["right", "r", "يمين"]: tile_id = "right"
-                    elif direction in ["left", "l", "يسار"]: tile_id = "left"
-                    elif direction in ["side", "s", "جانبي", "جانب"]: tile_id = "side"
-                    if tile_id and step.isdigit():
-                        for u, pos in room_users.content:
-                            if u.id == user.id and isinstance(pos, Position):
-                                key = f"{step}_{tile_id}"
-                                self.glass_positions[key] = pos
-                                await self.highrise.chat(f"💎 تم حفظ المربع {tile_id} في الصف {step}")
-                                break
+        # استقبال أرقام الصناديق في جولة التوقعات
+        if self.prediction_active:
+            if msg.isdigit() and int(msg) in self.boxes:
+                box_num = int(msg)
+                if user.id in self.predictions:
+                    self.predictions[user.id]["box"] = box_num
+                    await self.highrise.chat(f"📌 تم حفظ توقعك للصندوق [{box_num}] يا @{user.username}")
+                    
+                    # المؤقت الذكي: بدء تلقائي وفوري للنتائج إذا كتب جميع الدافعين أرقامهم دون انتظار
+                    if all(info["box"] is not None for info in self.predictions.values()):
+                        await self.reveal_prediction_results()
+                else:
+                    # التنبيه الذكي لمنع التوقع قبل الدفع
+                    await self.highrise.chat(f"⛔ @{user.username}، توقعك غير محسوب! يجب أن تدفع 5 أولاً في الحصالة لتفعيل التوقع.")
 
-            elif message_clean == "ابدأ اللعبة":
-                self.glass_game_active = False
-                self.game_active = True
-                self.prisoners.clear()
-                self.player_positions.clear()
-                self.freeze_check = False
-                for u, pos in room_users.content:
-                    if hasattr(pos, 'x'):
-                        self.player_positions[u.id] = (round(pos.x, 2), round(pos.z, 2))
-                if self.game_task and not self.game_task.done():
-                    self.game_task.cancel()
-                self.game_task = asyncio.create_task(self.game_loop())
-                await self.highrise.chat("🎮 انطلقت لعبة أحمر وأخضر بنجاح!")
+    # 3. بدء اللعبة الأساسية
+    async def start_main_game(self):
+        self.game_active = True
+        await self.highrise.chat("🎮 <color=#FFD700>بدأت الجولة الرسمية! الصناديق الثابتة مغلقة بالكامل الآن!</color>")
+        
+        # إعداد محتويات الصناديق الـ 10 سرياً في الذاكرة للبدء
+        all_contents = ["50", "فخ", "فخ", "1", "1", "فارغ", "فارغ", "فارغ", "فارغ", "فارغ"]
+        random.shuffle(all_contents)
+        self.boxes = {i+1: all_contents[i] for i in range(10)}
+        
+        await asyncio.sleep(2)
+        await self.check_and_trigger_predictions()
 
-            elif message_clean in ["اوقف اللعبة", "اوقف الزجاج"]:
-                self.game_active = False
-                self.glass_game_active = False
-                self.freeze_check = False
-                if self.game_task:
-                    self.game_task.cancel()
-                    self.game_task = None
-                self.prisoners.clear() 
-                self.player_positions.clear()  
-                await self.highrise.chat("🛑 تم إيقاف اللعب وإعادة الجميع.")
-                if self.spawn_position:
-                    for u, _ in room_users.content:
-                        if u.id != self.highrise.my_id:
-                            try: await self.highrise.teleport(u.id, self.spawn_position)
-                            except: pass
+    # 4. التنبيه المرن لفتح جولة التوقعات (بين 2 إلى 4 صناديق متبقية)
+    async def check_and_trigger_predictions(self):
+        remaining_boxes = list(self.boxes.keys())
+        if "50" in self.boxes.values() and 2 <= len(remaining_boxes) <= 4:
+            self.game_active = False
+            self.prediction_active = True
+            
+            # الإعلان بألوان حماسية مميزة في الشات
+            await self.highrise.chat("🚨 <color=#FF3333><b>[ جولة تنبؤ الحضور والمشرفين ]</b></color> 🚨")
+            await self.highrise.chat(f"📦 <color=#FFD700>المتبقي {len(remaining_boxes)} صناديق فقط والـ 50 بالداخل!</color>")
+            await self.highrise.chat(f"الصناديق المتاحة هي: {remaining_boxes}")
+            await self.highrise.chat("👥 البوت جاهز! من يريد دفع 5 وتوقع الصندوق؟ (أمامكم 45 ثانية أو اكتب /end)")
+            
+            # وقت مريح وغير ممل للتوقعات
+            await asyncio.sleep(45)
+            if self.prediction_active:
+                await self.reveal_prediction_results()
 
-            elif message_clean == "ابدأ الزجاج":
-                self.game_active = False
-                if self.game_task:
-                    self.game_task.cancel()
-                    self.game_task = None
-                self.glass_game_active = True
-                self.glass_traps.clear()
-                self.prisoners.clear()
-                self.player_positions.clear()
-                for block in range(0, 10): 
-                    is_right_trap = random.choice([True, False])
-                    for sub in range(1, 4):
-                        step_num = block * 3 + sub
-                        self.glass_traps[f"{step_num}_side"] = "safe"
-                        if is_right_trap:
-                            self.glass_traps[f"{step_num}_right"] = "trap"
-                            self.glass_traps[f"{step_num}_left"] = "safe"
-                        else:
-                            self.glass_traps[f"{step_num}_left"] = "trap"
-                            self.glass_traps[f"{step_num}_right"] = "safe"
-                await self.highrise.chat("⚡ تم تشغيل لعبة الجسر الزجاجي!")
+    # 5. حساب الأرباح بنسبة (70% للفائزين و 30% لك) وإعلان النتائج صندوق صندوق مع الحركات
+    async def reveal_prediction_results(self):
+        self.prediction_active = False
+        await self.highrise.chat("🔒 <color=#FF3333>انتهى الوقت! تم إغلاق باب التوقعات، وبدء الحسم والنتائج...</color>")
+        await asyncio.sleep(2)
 
-            elif message_clean.startswith("vip"):
-                parts = message.split()
-                if len(parts) > 1 and self.vip_position:
-                    target = await self.get_target_user(parts[1], room_users)
-                    if target:
-                        try: await self.highrise.teleport(target.id, self.vip_position)
-                        except: pass
+        # حساب نسبة الـ 70% المضافة فوق الـ 50 الكبرى من توقعات آخر صناديق فقط
+        total_prediction_players = len(self.predictions)
+        bonus_gold = int((total_prediction_players * 5) * 0.70) 
+        final_prize = 50 + bonus_gold                 
+        
+        await self.highrise.chat(f"📊 <color=#00FF00>الجائزة الإجمالية المحدثة: [ {final_prize} ]</color>")
+        await asyncio.sleep(2)
 
-            elif message_clean.startswith("افراج"):
-                parts = message.split()
-                if len(parts) > 1:
-                    target = await self.get_target_user(parts[1], room_users)
-                    if target:
-                        if target.id in self.prisoners:
-                            self.prisoners.remove(target.id)
-                            # السطر المعدل والمحمي بالكامل من الانقطاع البرمجي:
-                            await self.highrise.chat(f"🕊️ تم الإفراج عن اللاعب")
-                            if self.spawn_position:
-                                try:
-                                    await self.highrise.teleport(target.id, self.spawn_position)
-                                    await asyncio.sleep(0.4)
-                                    await self.highrise.teleport(target.id, self.spawn_position)
-                                except: pass
+        winning_box = [k for k, v in self.boxes.items() if v == "50"][0]
+        winners_list = []
+        
+        # قائمة رقصات عشوائية متنوعة لمنع الملل عند فتح صندوق فارغ أو 1 جولد
+        bad_luck_emotes = ["emote-punch", "emote-pissed", "emote-shock", "emote-damaged", "emote-sad"]
+
+        # حسم وإعلان النتائج سطر سطر (صندوق صندوق) للتشويق وقراءة الجميع
+        for box_num, content in sorted(self.boxes.items()):
+            players_chosen = [info["username"] for uid, info in self.predictions.items() if info["box"] == box_num]
+            players_str = ", ".join(players_chosen) if players_chosen else "لا أحد"
+            
+            # حالة الصندوق الرابح الكبرى (50+)
+            if content == "50":
+                await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> 🎉 <color=#FFD700><b>هو الرابح وجائزته {final_prize}!</b></color>")
+                
+                # إشعال الغرفة بالدبكة والرقص الجماعي لـ كـــل الحاضرين فوراً 🔥🕺
+                await self.highrise.chat("🔥 <color=#00FF00><b>كل الغرفة تدبك وترقص احتفالاً بالفوز الجماعي!!</b></color> 🔥")
+                for user_id in list(self.room_users):
+                    try:
+                        await self.highrise.send_emote("emote-dancing", user_id)
+                    except:
+                        pass 
+
+                # تجميع الفائزين ونقلهم لمنصة الفوز
+                for uid, info in self.predictions.items():
+                    if info["box"] == box_num:
+                        winners_list.append(uid)
+                        try:
+                            await self.highrise.teleport(uid, self.winner_position)
+                        except:
+                            pass
+            
+            # حالة الفخ وسجن اللاعبين
+            elif content == "فخ":
+                await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> 💀 <color=#FF0000>فخ السجن الفوري!</color>")
+                for uid, info in self.predictions.items():
+                    if info["box"] == box_num:
+                        try:
+                            await self.highrise.send_emote("emote-scared", uid)
+                            # await self.highrise.teleport(uid, self.jail_position) 
+                        except:
+                            pass
+            
+            # حالة الصناديق الفارغة أو 1 جولد (تفعيل الرقصات والحركات العشوائية كالكمة وغيرها)
+            elif content in ["1", "فارغ"]:
+                await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> ❌ <color=#7F8C8D>صندوق فارغ أو يحتوي 1 فقط!</color>")
+                for uid, info in self.predictions.items():
+                    if info["box"] == box_num:
+                        try:
+                            # اختيار حركة عشوائية مختلفة لكل لاعب سيء الحظ (لكمة، صدمة، بكاء...)
+                            random_emote = random.choice(bad_luck_emotes)
+                            await self.highrise.send_emote(random_emote, uid)
+                        except:
+                            pass
+            
+            await asyncio.sleep(3) # فارق 3 ثوانٍ مريح ومشوق جداً بين الصناديق
+
+        # توزيع الذهب النهائي بالتساوي بين الفائزين بالتوقع الصحيح
+        if winners_list:
+            prize_per_person = final_prize // len(winners_list)
+            await self.highrise.chat(f"👑 مبروك للفائزين! تم تقسيم الذهب بالتساوي واستلم كل منكم {prize_per_person}.")
+        else:
+            await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح! ترحل الأرباح بالكامل لخزنة قيس وبدء جولة جديدة.")
+
+        # تصفير البيانات وتجهيز البوت للجولة التالية
+        self.players_paid.clear()
+        self.predictions.clear()
+        self.boxes.clear()
