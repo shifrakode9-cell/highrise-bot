@@ -23,6 +23,8 @@ class MyBot(BaseBot):
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
+        # 🟢 إضافة ميزة الترحيب والتعريف باللعبة تلقائياً عند دخول أي شخص
+        await self.highrise.chat(f"أهلاً بك @{user.username} في غرفتنا! 🎮 نحن نلعب لعبة الصناديق المثيرة. ادفع 5 ذهبات لتشترك وتصعد للمنصة فوراً!")
 
     async def on_user_leave(self, user: User) -> None:
         if user.id in self.room_users:
@@ -42,9 +44,11 @@ class MyBot(BaseBot):
             self.players_paid[sender.id] = sender.username
             await self.highrise.chat(f"✅ تم تسجيل اشتراك @{sender.username} | عدد المشتركين الحاليين: {len(self.players_paid)}/{self.max_players}.")
             
-            # 🚀 سحب المشترك تلقائياً للمنصة ليقف بجانب البوت
+            # 🚀 سحب المشترك تلقائياً للمنصة + طلب الرقم وحفظه فوراً
             try:
                 await self.highrise.teleport(sender.id, self.bot_platform_position)
+                # 🟢 البوت يطلب الرقم فور السحب ويحفظه في الذاكرة لحين بدء اللعبة
+                await self.highrise.chat(f"مبارك السحب يا @{sender.username}! من فضلك اختر رقم صندوقك الآن (1-10) سأحفظه عندي لحين بدء الجولة.")
             except Exception as e:
                 print(f"فشل سحب اللاعب للمنصة: {e}")
 
@@ -58,30 +62,44 @@ class MyBot(BaseBot):
         msg = message.strip()
         is_admin = user.username in ["qais29", "sweet_Lulus"]
 
+        # 🟢 استقبال أرقام الصناديق من المتسابقين المسحوبين للمنصة وحفظها سراً لحين بدء الجولة
+        if user.id in self.players_paid and not self.game_active and not self.prediction_active:
+            if msg.isdigit():
+                box_num = int(msg)
+                if 1 <= box_num <= 10:
+                    # حفظ التوقع في قائمة التوقعات قبل بداية الجولة رسميًا
+                    self.predictions[user.id] = {"username": user.username, "box": box_num}
+                    await self.highrise.chat(f"📌 تم حفظ الصندوق رقم [{box_num}] لـ @{user.username} بنجاح.")
+                    return
+
         if is_admin:
-            # 📌 أمر ضبط وتحديد المنصة
+            # 📌 أمر ضبط وتحديد المنصة (تم إصلاحه ليعمل مباشرة بدون شروط معقدة)
             if msg == "الموقع":
                 try:
                     room_users = await self.highrise.get_room_users()
                     for u, pos in room_users.content:
                         if u.id == user.id:
-                            if isinstance(pos, Position):
-                                self.bot_platform_position = pos
-                                await self.highrise.teleport(self.id, self.bot_platform_position)
-                                await self.highrise.chat("⚡ [تم بنجاح] تم حفظ مكان المنصة الجديد والوقوف فوقها!")
-                                return
+                            self.bot_platform_position = pos
+                            await self.highrise.teleport(self.id, self.bot_platform_position)
+                            await self.highrise.chat("⚡ [تم بنجاح] تم حفظ مكان المنصة الجديد والوقوف فوقها!")
+                            return
                 except Exception as e:
                     print(f"خطأ أثناء تحديد المنصة: {e}")
                 return
 
-            # 📌 أمر بدء اللعبة الأساسية
+            # 📌 أمر بدء اللعبة الأساسية وإعلان أرقام المشتركين المحفوظة فوراً
             if msg == "ابدأ" and not self.game_active:
-                if len(self.players_paid) < 2:
+                if len(self.players_paid) < 1:  # جعلناها 1 للتجربة الفردية وسهولة الاختبار
                     await self.highrise.chat("❌ لا يمكن بدء اللعبة، عدد المشتركين قليل جداً!")
                     return
                 self.game_active = True
                 await self.highrise.chat("🎮 <color=#FFD700>بدأت الجولة الرسمية! الصناديق الثابتة مغلقة بالكامل الآن!</color>")
                 
+                # إظهار الأرقام التي تم حفظها من اللاعبين فور سحبهم
+                for uid, info in self.predictions.items():
+                    if info["box"] is not None:
+                        await self.highrise.chat(f"👤 المتسابق @{info['username']} يشارك بالصندوق رقم: {info['box']}")
+
                 # التوزيع المعتمد (50، 10، خمستين، وواحدين، و4 فارغ)
                 all_contents = ["50", "10", "5", "5", "1", "1", "فارغ", "فارغ", "فارغ", "فارغ"]
                 random.shuffle(all_contents)
@@ -99,13 +117,12 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"الصناديق المتاحة هي: {remaining_boxes}")
                 await self.highrise.chat("👥 البوت جاهز لتلقي التوقعات! من يريد الاشتراك وتوقع الصندوق؟ (أمامكم 45 ثانية للبدء التلقائي)")
                 
-                # إعطاء مهلة للتوقعات، ثم الفتح والاحتفال تلقائياً
                 await asyncio.sleep(45)
                 if self.prediction_active:
                     await self.reveal_prediction_results()
                 return
                 
-            # 📌 أمر التصفير وبدء لعبة جديدة كلياً وتغيير الجوائز عشوائياً بناءً على طلبك
+            # 📌 أمر التصفير وبدء لعبة جديدة كلياً
             elif msg == "انتهى":
                 self.game_active = False
                 self.prediction_active = False
@@ -115,7 +132,7 @@ class MyBot(BaseBot):
                 await self.highrise.chat("🔄 <color=#00FF00><b>[ تم إنهاء اللعبة وتصفيرها بالكامل ] تم خلط الجوائز عشوائياً وفتح باب الاشتراك لجولة جديدة كلياً!</b></color>")
                 return
 
-        # استقبال أرقام التوقعات من اللاعبين المشتركين في الشات
+        # استقبال أرقام التوقعات الإضافية أثناء جولة "توقع" الحضور
         if self.prediction_active:
             if msg.isdigit() and int(msg) in self.boxes:
                 box_num = int(msg)
@@ -123,7 +140,6 @@ class MyBot(BaseBot):
                     self.predictions[user.id]["box"] = box_num
                     await self.highrise.chat(f"📌 تم حفظ توقعك للصندوق [{box_num}] يا @{user.username}")
                     
-                    # إذا أدخل الجميع توقعاتهم، يفتح تلقائياً دون انتظار الـ 45 ثانية
                     if all(info["box"] is not None for info in self.predictions.values()):
                         await self.reveal_prediction_results()
                 else:
@@ -137,7 +153,7 @@ class MyBot(BaseBot):
 
         total_prediction_players = len(self.predictions)
         bonus_gold = int((total_prediction_players * 5) * 0.70) 
-        final_prize = 50 + bonus_gold                 
+        final_prize = 50 + bonus_gold                  
         
         await self.highrise.chat(f"📊 <color=#00FF00>القيمة الإجمالية الحالية للجائزة الكبرى: [ {final_prize} نقطة ]</color>")
         await asyncio.sleep(2)
@@ -156,52 +172,39 @@ class MyBot(BaseBot):
             players_chosen = [info["username"] for uid, info in self.predictions.items() if info["box"] == box_num]
             players_str = ", ".join(players_chosen) if players_chosen else "لا أحد"
             
-            # 🎉 بمجرد ظهور الـ 50 تبدأ الاحتفالات الكبرى فوراً تلقائياً
             if content == "50":
                 await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> 🎉 <color=#FFD700><b>هو الرابح الأكبر وحصل على الجائزة الكبرى بقيمة {final_prize} نقطة!</b></color>")
-                
-                # 🔥 الدبكة والرقص الجماعي لكل الغرفة فوراً عند الفوز
                 await self.highrise.chat("🔥 <color=#00FF00><b>كل الغرفة تدبك وترقص احتفالاً بالفوز الجماعي!!</b></color> 🔥")
                 for user_id in list(self.room_users):
-                    try:
-                        await self.highrise.send_emote("emote-dancing", user_id)
-                    except:
-                        pass 
+                    try: await self.highrise.send_emote("emote-dancing", user_id)
+                    except: pass 
 
                 for uid, info in self.predictions.items():
                     if info["box"] == box_num:
                         winners_list.append(info["username"])
-                        try:
-                            await self.highrise.teleport(uid, self.winner_position)
-                        except:
-                            pass
+                        try: await self.highrise.teleport(uid, self.winner_position)
+                        except: pass
             
             elif content == "10":
                 await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> ⭐ <color=#00FFFF>مبارك! يحتوي على جائزة بقيمة 10 نقاط!</color>")
                 for uid, info in self.predictions.items():
                     if info["box"] == box_num:
-                        try:
-                            await self.highrise.send_emote("emote-celebrate", uid) 
-                        except:
-                            pass
+                        try: await self.highrise.send_emote("emote-celebrate", uid) 
+                        except: pass
 
             elif content == "5":
                 await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> 🪙 <color=#FFFF00>جيد! يحتوي على جائزة بقيمة 5 نقاط!</color>")
                 for uid, info in self.predictions.items():
                     if info["box"] == box_num:
-                        try:
-                            await self.highrise.send_emote("emote-yes", uid)
-                        except:
-                            pass
+                        try: await self.highrise.send_emote("emote-yes", uid)
+                        except: pass
 
             elif content == "1":
                 await self.highrise.chat(f"📦 الصندوق [{box_num}] لـ ({players_str}) -> 🎯 <color=#95A5A6>يحتوي على نقطة واحدة كترضية بسيطة!</color>")
                 for uid, info in self.predictions.items():
                     if info["box"] == box_num:
-                        try:
-                            await self.highrise.send_emote("emote-sad", uid)
-                        except:
-                            pass
+                        try: await self.highrise.send_emote("emote-sad", uid)
+                        except: pass
             
             elif content == "فارغ":
                 chosen_msg = random.choice(empty_box_messages)
@@ -211,8 +214,7 @@ class MyBot(BaseBot):
                         try:
                             random_emote = random.choice(bad_luck_emotes)
                             await self.highrise.send_emote(random_emote, uid)
-                        except:
-                            pass
+                        except: pass
             
             await asyncio.sleep(3) 
 
