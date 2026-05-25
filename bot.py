@@ -1,23 +1,7 @@
 import asyncio
 import random
-import sys
-from threading import Thread
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
-
-# 🌐 سيرفر ويب مدمج لحماية منصة ريندر من الهبوط والـ Ports
-class RenderHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write("🤖 البوت متصل ومستقر بداخل العالم الجديد!".encode('utf-8'))
-    def log_message(self, format, *args): return
-
-def run_web_server():
-    server = HTTPServer(('0.0.0.0', 10000), RenderHandler)
-    server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -32,7 +16,7 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 تم اختراق خادم العوالم بنجاح والبوت في الغرفة الآن!")
+        print("🤖 البوت متصل ومستقر بداخل العالم الجديد!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
@@ -149,17 +133,3 @@ class MyBot(BaseBot):
 
         if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
         else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
-
-if __name__ == '__main__':
-    # تشغيل سيرفر الويب المدمج لراحة ريندر
-    Thread(target=run_web_server, daemon=True).start()
-    
-    # ربط مكتبة اللعبة بالمعرفات الجديدة المدمجة
-    from highrise.__main__ import main
-    sys.argv = [
-        "highrise", 
-        "bot:MyBot", 
-        "6a04970a90ee23ef0aaff651", # الـ ownedRoomId الصحيح لغرفتك
-        "22b0110e1d415ec868f62fae55770b6b6c39edf1f02f8ec935e1741b2f61b2a5"
-    ]
-    asyncio.run(main())
