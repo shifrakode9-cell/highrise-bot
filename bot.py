@@ -1,7 +1,9 @@
 import asyncio
 import random
+import sys
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
+from highrise.__main__ import main as highrise_main
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -16,7 +18,7 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البشارة المنتظرة: البوت متصل ومستقر بالكامل بداخل الغرفة!")
+        print("🤖 البشارة المنتظرة: البوت متصل ومستقر بالكامل بداخل العالم!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
@@ -133,3 +135,13 @@ class MyBot(BaseBot):
 
         if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
         else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
+
+# الكود البرمجي الذكي لتشغيل واجهة الـ CLI للمكتبة وضمان تعبئة الـ definitions تلقائياً بدون أخطاء
+if __name__ == "__main__":
+    sys.argv = [
+        "highrise",
+        "bot:MyBot",
+        "6894bd39e3e4a405517cb530", # معرف العالم الفعلي (World ID)
+        "a2d28756193cd5d27e1ce58108a8d6ad44529721d2536c2248c67b7eca4006b5" # التوكن الجديد والمصفّر
+    ]
+    highrise_main()
