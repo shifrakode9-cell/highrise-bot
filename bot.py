@@ -1,7 +1,14 @@
 import asyncio
 import random
+import sys
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
+
+# متغير لمنع التكرار والـ Multilogin المعلق من ريندر
+if not hasattr(sys, '_bot_instance_loaded'):
+    sys._bot_instance_loaded = True
+else:
+    sys.exit(0)
 
 class MyBot(BaseBot):
     def __init__(self):
