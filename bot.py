@@ -13,6 +13,7 @@ class MyBot(BaseBot):
         self.boxes = {}             
         self.max_players = 5
         self.room_users = set()  
+        # جعل الموقع الافتراضي للمنصة يبدأ من نقطة الصفر
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
@@ -34,12 +35,20 @@ class MyBot(BaseBot):
             if len(self.players_paid) >= self.max_players:
                 await self.highrise.chat(f"⚠️ @{sender.username} العدد مكتمل حالياً!")
                 return
+            
+            # التحقق مما إذا كان الآدمن قد حدد المنصة
+            if self.bot_platform_position.x == 0.0 and self.bot_platform_position.y == 0.0:
+                await self.highrise.chat(f"⚠️ عذراً @{sender.username}، لم يقم صاحب الغرفة بتحديد موقع المنصة بعد!")
+                return
+
             self.players_paid[sender.id] = sender.username
             await self.highrise.chat(f"✅ تم تسجيل اشتراك @{sender.username}")
             try:
+                # نقل المشترك إلى إحداثيات المنصة البعيدة مباشرة
                 await self.highrise.teleport(sender.id, self.bot_platform_position)
                 await self.highrise.chat(f"مبارك السحب يا @{sender.username}! اختر رقم صندوقك الآن (1-10)")
-            except: pass
+            except Exception as e:
+                print(f"خطأ في نقل المشترك: {e}")
 
     async def on_chat(self, user: User, message: str) -> None:
         msg = message.strip()
@@ -54,18 +63,34 @@ class MyBot(BaseBot):
                     return
 
         if is_admin:
-            if msg == "تعال" or msg == "الموقع":
+            # 1. أمر سحب البوت إليك آدمن فقط (مع جلب وتأكيد الإحداثيات)
+            if msg == "تعال":
+                try:
+                    response = await self.highrise.get_room_users()
+                    for room_user, pos in response.content:
+                        if room_user.id == user.id:
+                            # محاولة الانتقال المباشر للبوت
+                            await self.highrise.teleport(self.id, pos)
+                            await self.highrise.chat(f"🏃‍♂️ تم سحب البوت إليك يا @{user.username}!")
+                            return
+                except Exception as e:
+                    print(f"فشل أمر تعال بسبب تباين الأبعاد: {e}")
+                return
+
+            # 2. الأمر الجديد كلياً لتثبيت إحداثيات منصة المشتركين البعيدة
+            elif msg == "المنصة" or msg == "تثبيت المنصة":
                 try:
                     response = await self.highrise.get_room_users()
                     for room_user, pos in response.content:
                         if room_user.id == user.id:
                             self.bot_platform_position = pos
-                            await self.highrise.teleport(self.id, pos)
-                            await self.highrise.chat(f"🏃‍♂️ تم سحب البوت بنجاح يا @{user.username} وتثبيت الموقع هنا!")
+                            await self.highrise.chat(f"📍 تم حفظ موقع وقوفك الحالي كـ (منصة رسمية للمشتركين) بنجاح!")
                             return
-                except: pass
+                except Exception as e:
+                    print(f"فشل حفظ المنصة: {e}")
                 return
 
+            # 3. أمر سحب الغرفة المطور
             elif msg == "سحب الغرفة":
                 try:
                     response = await self.highrise.get_room_users()
@@ -80,7 +105,8 @@ class MyBot(BaseBot):
                             if room_user.id != self.id and room_user.id != user.id:
                                 try: await self.highrise.teleport(room_user.id, my_pos)
                                 except: pass
-                except: pass
+                except Exception as e:
+                    print(f"فشل سحب الغرفة: {e}")
                 return
 
             elif msg == "ابدأ" and not self.game_active:
