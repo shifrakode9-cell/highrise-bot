@@ -1,6 +1,5 @@
 import asyncio
 import random
-import sys
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
 
@@ -134,14 +133,3 @@ class MyBot(BaseBot):
 
         if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
         else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
-
-if __name__ == '__main__':
-    from highrise.cli import main as cli_main
-    # إعداد المتغيرات للنظام الجديد ليتولى الـ CLI بناء الـ definitions تلقائياً
-    sys.argv = [
-        "highrise", 
-        "bot:MyBot", 
-        "6a04970a90ee23ef0aaff651", 
-        "a2d28756193cd5d27e1ce58108a8d6ad44529721d2536c2248c67b7eca4006b5"
-    ]
-    cli_main()
