@@ -1,5 +1,7 @@
 import asyncio
 import random
+import threading
+from http.server import SimpleHTTPRequestHandler, HTTPServer
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
 
@@ -160,3 +162,19 @@ class MyBot(BaseBot):
 
         if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
         else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
+
+# -------------------------------------------------------------
+# 🌐 كود فتح المنفذ (Port) لإبقاء البوت حياً ومستيقظاً في ريندر رغماً عنه:
+def run_web_server():
+    # ريندر يبحث دائماً عن بورت يعمل ليستمر السيرفر، هذا السطر يفتحه فوراً
+    server = HTTPServer(('0.0.0.0', 8000), SimpleHTTPRequestHandler)
+    print("🌐 تم فتح منفذ الويب الوهمي بنجاح لتنشيط ريندر!")
+    server.serve_forever()
+
+if __name__ == "__main__":
+    # تشغيل سيرفر الويب في الخلفية لضمان عمل UptimeRobot بالشكل الصحيح
+    threading.Thread(target=run_web_server, daemon=True).start()
+    
+    # تشغيل البوت الرسمي للعبة
+    from highrise.__main__ import main
+    main()
