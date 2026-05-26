@@ -13,7 +13,7 @@ class MyBot(BaseBot):
         self.boxes = {}             
         self.max_players = 5
         self.room_users = set()  
-        # جعل الموقع الافتراضي للمنصة يبدأ من نقطة الصفر
+        # موقع المنصة الافتراضي
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
@@ -36,7 +36,7 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"⚠️ @{sender.username} العدد مكتمل حالياً!")
                 return
             
-            # التحقق مما إذا كان الآدمن قد حدد المنصة
+            # التحقق من تثبيت المنصة أولاً
             if self.bot_platform_position.x == 0.0 and self.bot_platform_position.y == 0.0:
                 await self.highrise.chat(f"⚠️ عذراً @{sender.username}، لم يقم صاحب الغرفة بتحديد موقع المنصة بعد!")
                 return
@@ -44,7 +44,7 @@ class MyBot(BaseBot):
             self.players_paid[sender.id] = sender.username
             await self.highrise.chat(f"✅ تم تسجيل اشتراك @{sender.username}")
             try:
-                # نقل المشترك إلى إحداثيات المنصة البعيدة مباشرة
+                # نقل المشترك تلقائياً إلى موقع المنصة البعيدة التي قمت بتثبيتها
                 await self.highrise.teleport(sender.id, self.bot_platform_position)
                 await self.highrise.chat(f"مبارك السحب يا @{sender.username}! اختر رقم صندوقك الآن (1-10)")
             except Exception as e:
@@ -63,21 +63,19 @@ class MyBot(BaseBot):
                     return
 
         if is_admin:
-            # 1. أمر سحب البوت إليك آدمن فقط (مع جلب وتأكيد الإحداثيات)
+            # 1. أمر "تعال" -> يسحب البوت فوراً إلى موقع وقوفك الحالي
             if msg == "تعال":
                 try:
                     response = await self.highrise.get_room_users()
                     for room_user, pos in response.content:
                         if room_user.id == user.id:
-                            # محاولة الانتقال المباشر للبوت
                             await self.highrise.teleport(self.id, pos)
-                            await self.highrise.chat(f"🏃‍♂️ تم سحب البوت إليك يا @{user.username}!")
+                            await self.highrise.chat(f"🏃‍♂️ تم سحب البوت إلى موقعك بنجاح!")
                             return
-                except Exception as e:
-                    print(f"فشل أمر تعال بسبب تباين الأبعاد: {e}")
+                except: pass
                 return
 
-            # 2. الأمر الجديد كلياً لتثبيت إحداثيات منصة المشتركين البعيدة
+            # 2. أمر "المنصة" -> لتثبيت موقع المنصة البعيدة للمشتركين بنجاح
             elif msg == "المنصة" or msg == "تثبيت المنصة":
                 try:
                     response = await self.highrise.get_room_users()
@@ -86,11 +84,10 @@ class MyBot(BaseBot):
                             self.bot_platform_position = pos
                             await self.highrise.chat(f"📍 تم حفظ موقع وقوفك الحالي كـ (منصة رسمية للمشتركين) بنجاح!")
                             return
-                except Exception as e:
-                    print(f"فشل حفظ المنصة: {e}")
+                except: pass
                 return
 
-            # 3. أمر سحب الغرفة المطور
+            # 3. أمر "سحب الغرفة" بنظام جبار القوي -> يسحب البوت والجميع فوراً إلى نقطة وقوفك الحالية
             elif msg == "سحب الغرفة":
                 try:
                     response = await self.highrise.get_room_users()
@@ -99,14 +96,18 @@ class MyBot(BaseBot):
                         if room_user.id == user.id:
                             my_pos = pos
                             break
+                    
                     if my_pos:
-                        await self.highrise.chat("⚡ جاري سحب الجميع...")
+                        await self.highrise.chat("⚡ نظام جبار: جاري سحب الجميع والبوت إلى هنا...")
+                        # سحب البوت أولاً إلى موقعك
+                        try: await self.highrise.teleport(self.id, my_pos)
+                        except: pass
+                        # سحب باقي الحضور إلى موقعك
                         for room_user, pos in response.content:
-                            if room_user.id != self.id and room_user.id != user.id:
+                            if room_user.id != user.id and room_user.id != self.id:
                                 try: await self.highrise.teleport(room_user.id, my_pos)
                                 except: pass
-                except Exception as e:
-                    print(f"فشل سحب الغرفة: {e}")
+                except: pass
                 return
 
             elif msg == "ابدأ" and not self.game_active:
