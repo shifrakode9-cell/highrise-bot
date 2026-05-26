@@ -1,25 +1,7 @@
 import asyncio
 import random
-import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from threading import Thread
 from highrise import BaseBot, User, CurrencyItem, Position
 from highrise.models import SessionMetadata
-
-# 🌐 سيرفر الويب المدمج لإرضاء منصة ريندر ومنع الـ Down
-class RenderServer(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write("🤖 البوت شغال ومستقر بداخل العالم الجديد!".encode('utf-8'))
-    def log_message(self, format, *args): return
-
-def start_web_server():
-    # ريندر يرسل البورت تلقائياً في متغير PORT، وإذا لم يجده يختار 10000
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), RenderServer)
-    server.serve_forever()
 
 class MyBot(BaseBot):
     def __init__(self):
@@ -34,7 +16,7 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البارة المنتظرة: البوت اقتحم الغرفة بنجاح وهو الآن متصل بالكامل!")
+        print("🤖 البشارة المنتظرة: البوت متصل ومستقر بالكامل بداخل الغرفة!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
@@ -151,26 +133,3 @@ class MyBot(BaseBot):
 
         if winners_list: await self.highrise.chat(f"👑 مبروك للفائزين: {', '.join(winners_list)}")
         else: await self.highrise.chat("😢 لم يتوقع أحد الصندوق الصحيح.")
-
-if __name__ == '__main__':
-    # 1. تشغيل سيرفر الويب في الخلفية كخلفية آمنة لريندر
-    Thread(target=start_web_server, daemon=True).start()
-    print("🌐 سيرفر الويب الداخلي جاهز ومستمع للـ Port.")
-
-    # 2. تشغيل البوت بالطريقة الرسمية الصحيحة المتوافقة مع التحديثات
-    from highrise.__main__ import main
-    import sys
-    
-    # محاكاة التحديث البرمجي الجديد للمكتبة
-    sys.argv = [
-        "highrise", 
-        "bot:MyBot", 
-        "6a04970a90ee23ef0aaff651", 
-        "a2d28756193cd5d27e1ce58108a8d6ad44529721d2536c2248c67b7eca4006b5"
-    ]
-    
-    try:
-        from highrise.cli import main as cli_main
-        cli_main()
-    except:
-        asyncio.run(main())
