@@ -6,9 +6,6 @@ from highrise.models import SessionMetadata
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
-        # إجبار البوت داخلياً على ربط الجلسة بمعرف غرفتك الفرعية داخل العالم
-        self.room_id = "6a04970a90ee23ef0aaff651"
-        
         self.game_active = False
         self.prediction_active = False
         self.players_paid = {}      
@@ -19,7 +16,7 @@ class MyBot(BaseBot):
         self.bot_platform_position = Position(0.0, 0.0, 0.0) 
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🤖 البشارة المنتظرة: البوت متصل ومستقر بالكامل بداخل غرفتك!")
+        print("🤖 البشارة المنتظرة: البوت متصل ومستقر بالكامل بداخل الغرفة!")
 
     async def on_user_join(self, user: User, position: Position) -> None:
         self.room_users.add(user.id)
