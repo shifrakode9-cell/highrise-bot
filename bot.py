@@ -1,14 +1,13 @@
 import os
+import asyncio
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from highrise import BaseBot, run_bot
+from highrise import BaseBot, Highrise
 
-# تعريف البوت
 class MyNewBot(BaseBot):
     async def on_start(self, session_metadata):
-        print("--- تم الاتصال بنجاح بالغرفة! ---")
+        print(f"--- تم الاتصال بنجاح بالغرفة: {session_metadata.room_id} ---")
 
-# خادم الصحة الوهمي (لأجل Render)
 def start_health_server():
     port = int(os.environ.get("PORT", 10000))
     class HealthHandler(BaseHTTPRequestHandler):
@@ -19,13 +18,15 @@ def start_health_server():
         def log_message(self, format, *args): return
     HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
 
+async def main():
+    bot = MyNewBot()
+    room_id = os.getenv("ROOM_ID")
+    token = os.getenv("API_KEY")
+    
+    # الاتصال المباشر عبر الكلاس الرسمي
+    async with Highrise(room_id, token) as h:
+        await h.run(bot)
+
 if __name__ == "__main__":
-    # 1. تشغيل خادم الصحة
     threading.Thread(target=start_health_server, daemon=True).start()
-    
-    # 2. تشغيل البوت مباشرة
-    room_id = os.environ.get("ROOM_ID")
-    api_key = os.environ.get("API_KEY")
-    
-    print("--- محاولة بدء تشغيل البوت... ---")
-    run_bot(MyNewBot(), room_id, api_key)
+    asyncio.run(main())
