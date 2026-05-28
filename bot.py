@@ -1,14 +1,15 @@
 import os
-from highrise import BaseBot, run
+import subprocess
+import sys
 
-class MyBot(BaseBot):
-    async def on_start(self, session_metadata):
-        print("--- تم الاتصال بنجاح! ---")
+# نقوم بقراءة الإعدادات
+room_id = os.getenv("ROOM_ID")
+api_key = os.getenv("API_KEY")
 
-if __name__ == "__main__":
-    room_id = os.getenv("ROOM_ID")
-    api_key = os.getenv("API_KEY")
-    
-    # هذه الطريقة هي المعيار الرسمي لتشغيل بوتات Highrise
-    # نحن نمرر الكلاس الخاص بنا والآيدي والتوكن
-    run(MyBot, room_id, api_key)
+# هذا السطر يقوم بتشغيل المكتبة كأنها أمر نظام (System Command)
+# وهو الحل الأخير لتجنب مشاكل التوافق في الإصدار 25.1.0
+command = [sys.executable, "-m", "highrise", "bot:MyBot", room_id, api_key]
+
+# تنفيذ الأمر
+process = subprocess.Popen(command)
+process.wait()
