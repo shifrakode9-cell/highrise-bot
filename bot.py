@@ -1,6 +1,7 @@
 import os
 import asyncio
-from highrise import BaseBot, Highrise
+from highrise import BaseBot
+from highrise import Highrise
 
 class MyBot(BaseBot):
     async def on_start(self, session_metadata):
@@ -11,10 +12,10 @@ async def main():
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # الطريقة الصحيحة للتشغيل في إصدار 25.1.0
-    # نستخدم الدالة run_bot من كلاس Highrise مباشرة
+    # في إصدار 25.1.0، الاتصال يتم عبر دالة static تابعة للمكتبة
     bot = MyBot()
-    await Highrise().run_bot(bot, room_id, api_key)
+    # جرب هذا السطر بدلاً من كل ما سبق
+    await bot.connect(room_id, api_key)
 
 if __name__ == "__main__":
     asyncio.run(main())
