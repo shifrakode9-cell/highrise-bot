@@ -1,22 +1,16 @@
 import os
 import asyncio
-from highrise import BaseBot, BotDefinition, run
+from highrise import BaseBot, run
 
-class MyNewBot(BaseBot):
+class MyBot(BaseBot):
     async def on_start(self, session_metadata):
-        print(f"--- البوت اتصل بنجاح بالغرفة: {session_metadata.room_id} ---")
-        # لا نضع أي دالة قد تسبب خطأ، فقط نكتفي بالاتصال
-        await self.highrise.chat("تم الاتصال بنجاح!")
+        print(f"--- اتصل البوت بنجاح بالغرفة: {session_metadata.room_id} ---")
+        await self.highrise.chat("مرحباً! البوت يعمل.")
 
-# هذا الجزء هو الطريقة الرسمية في التحديث الأخير للتشغيل
-async def main():
-    bot = MyNewBot()
+if __name__ == "__main__":
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # دمج تعريف البوت للتشغيل
-    definition = BotDefinition(bot, room_id, api_key)
-    await run(definition)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    # هذه هي الطريقة الوحيدة الصحيحة لتشغيل البوت في الإصدار 25.1.0
+    # الـ run تاخذ (الكلاس، الغرفة، التوكن)
+    run(MyBot, room_id, api_key)
