@@ -11,10 +11,10 @@ async def main():
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # في النسخة 25.1.0، نستخدم فئة Highrise لتشغيل البوت كالتالي:
+    # الطريقة الصحيحة للتشغيل في إصدار 25.1.0
+    # نستخدم الدالة run_bot من كلاس Highrise مباشرة
     bot = MyBot()
-    # نمرر البوت ومعلومات الاتصال إلى دالة التنسيق
-    await Highrise().login(bot, room_id, api_key)
+    await Highrise().run_bot(bot, room_id, api_key)
 
 if __name__ == "__main__":
     asyncio.run(main())
