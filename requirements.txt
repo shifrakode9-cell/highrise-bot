@@ -1,2 +1,1 @@
-highrise-bot-sdk==25.1.0
-https://files.pythonhosted.org/packages/d6/00/039c36c646c245c689100412389d701047805168019a28bc032c286d9a97/pendulum-2.1.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+highrise-bot-sdk>=25.2.0
