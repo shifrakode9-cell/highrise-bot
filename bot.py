@@ -8,18 +8,14 @@ class MyBot(BaseBot):
         await self.highrise.chat("البوت متصل الآن!")
 
 async def main():
-    # استدعاء البيانات من الإعدادات
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # 1. إنشاء كائن البوت
+    # تعريف البوت
     bot = MyBot()
     
-    # 2. إنشاء كائن الاتصال (بدون async with)
-    h = Highrise()
-    
-    # 3. تشغيل الاتصال
-    await h.run(bot, room_id, api_key)
+    # الاتصال المباشر عبر BaseBot
+    await bot.run(room_id, api_key)
 
 if __name__ == "__main__":
     asyncio.run(main())
