@@ -1,21 +1,11 @@
-import os
 import asyncio
-from highrise import BaseBot, Highrise
-
-class MyBot(BaseBot):
-    async def on_start(self, session_metadata):
-        print("--- تم الاتصال بنجاح ---")
-        await self.highrise.chat("البوت متصل ويعمل!")
+from highrise import Highrise
 
 async def main():
-    room_id = os.getenv("ROOM_ID")
-    api_key = os.getenv("API_KEY")
-    
-    # في النسخة 25.1.0، الطريقة هي إنشاء كائن Highrise 
-    # واستخدام الدالة المباشرة للاتصال
-    bot = MyBot()
     hr = Highrise()
-    await hr.run(bot, room_id, api_key)
+    # طباعة كل الدوال المتاحة في الكائن للبحث عن الدالة الصحيحة
+    print("--- الدوال المتاحة في Highrise هي: ---")
+    print(dir(hr))
 
 if __name__ == "__main__":
     asyncio.run(main())
