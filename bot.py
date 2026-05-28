@@ -1,14 +1,14 @@
 import os
-import sys
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from highrise import BaseBot
+from highrise import BaseBot, run_bot
 
+# تعريف البوت
 class MyNewBot(BaseBot):
     async def on_start(self, session_metadata):
         print("--- تم الاتصال بنجاح بالغرفة! ---")
-        # لا نستخدم أي دالة حركة، فقط نكتفي بالاتصال لضمان عدم وجود أخطاء
 
+# خادم الصحة الوهمي (لأجل Render)
 def start_health_server():
     port = int(os.environ.get("PORT", 10000))
     class HealthHandler(BaseHTTPRequestHandler):
@@ -20,11 +20,12 @@ def start_health_server():
     HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
 
 if __name__ == "__main__":
+    # 1. تشغيل خادم الصحة
     threading.Thread(target=start_health_server, daemon=True).start()
     
-    from highrise.main import main
-    room_id = os.getenv("ROOM_ID")
-    api_key = os.getenv("API_KEY")
+    # 2. تشغيل البوت مباشرة
+    room_id = os.environ.get("ROOM_ID")
+    api_key = os.environ.get("API_KEY")
     
-    sys.argv = ["highrise", "bot:MyNewBot", room_id, api_key]
-    main()
+    print("--- محاولة بدء تشغيل البوت... ---")
+    run_bot(MyNewBot(), room_id, api_key)
