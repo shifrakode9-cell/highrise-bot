@@ -1,14 +1,22 @@
 import os
-import subprocess
-import sys
+import asyncio
+from highrise import BaseBot
+from highrise.models import BotDefinition
 
-# نقوم بتشغيل البوت باستخدام أمر النظام بدلاً من استيراد المكتبة برمجياً
-# لأن هذا هو الطريقة الوحيدة التي تدعمها نسخة 25.1.0
-room_id = os.getenv("ROOM_ID")
-api_key = os.getenv("API_KEY")
+class MyBot(BaseBot):
+    async def on_start(self, session_metadata):
+        print("--- تم الاتصال بنجاح ---")
+        await self.highrise.chat("البوت متصل!")
 
-# أمر التشغيل الرسمي في الإصدارات الجديدة
-cmd = [sys.executable, "-m", "highrise", room_id, api_key]
-
-# تنفيذ الأمر
-subprocess.run(cmd)
+if __name__ == "__main__":
+    # استخراج البيانات
+    room_id = os.getenv("ROOM_ID")
+    api_key = os.getenv("API_KEY")
+    
+    # تعريف البوت وتمرير القيم الثلاث التي يطلبها الخطأ
+    # (bot_class, room_id, api_key)
+    bot = MyBot()
+    
+    # استخدام الأمر المباشر الذي تتوقعه المكتبة بناءً على الخطأ الذي ظهر
+    import highrise
+    highrise.main([BotDefinition(bot, room_id, api_key)])
