@@ -1,15 +1,24 @@
 import os
 import subprocess
 import sys
+from highrise import BaseBot
 
-# نقوم بقراءة الإعدادات
-room_id = os.getenv("ROOM_ID")
-api_key = os.getenv("API_KEY")
+# هذا هو الكود الأساسي الذي يتحكم بتصرفات البوت
+class MyBot(BaseBot):
+    async def on_start(self, session_metadata):
+        print("--- تم الاتصال بنجاح! ---")
+        await self.highrise.chat("مرحباً، البوت متصل!")
 
-# هذا السطر يقوم بتشغيل المكتبة كأنها أمر نظام (System Command)
-# وهو الحل الأخير لتجنب مشاكل التوافق في الإصدار 25.1.0
-command = [sys.executable, "-m", "highrise", "bot:MyBot", room_id, api_key]
+# هذا الجزء هو "المحرك" الذي يشغل البوت
+if __name__ == "__main__":
+    room_id = os.getenv("ROOM_ID")
+    api_key = os.getenv("API_KEY")
+    
+    # التأكد من وجود المتغيرات
+    if not room_id or not api_key:
+        print("خطأ: يرجى التأكد من إضافة ROOM_ID و API_KEY في إعدادات Render")
+        sys.exit(1)
 
-# تنفيذ الأمر
-process = subprocess.Popen(command)
-process.wait()
+    # تشغيل المكتبة كعملية نظام لتجنب مشاكل الـ Import و الـ Terminal
+    command = [sys.executable, "-m", "highrise", "bot:MyBot", room_id, api_key]
+    subprocess.run(command)
