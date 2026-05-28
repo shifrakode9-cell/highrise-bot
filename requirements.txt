@@ -1,1 +1,3 @@
-highrise-bot-sdk
+wheel
+pendulum==2.1.2
+highrise-bot-sdk==25.1.0
