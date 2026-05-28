@@ -8,13 +8,15 @@ class MyBot(BaseBot):
         await self.highrise.chat("البوت متصل ويعمل!")
 
 async def main():
-    # تأكد من وضع ROOM_ID و API_KEY في إعدادات Render
+    # استخراج البيانات من المتغيرات
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
+    # تصحيح طريقة الاستدعاء: نستخدم Highrise بدون تمرير المدخلات هنا
     bot = MyBot()
-    async with Highrise(room_id, api_key) as h:
-        await h.run(bot)
+    # يتم التمرير من خلال دالة run أو عبر كائن الـ Highrise
+    async with Highrise() as h:
+        await h.run(bot, room_id, api_key)
 
 if __name__ == "__main__":
     asyncio.run(main())
