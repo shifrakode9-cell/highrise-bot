@@ -1,7 +1,6 @@
 import os
 import asyncio
-from highrise import BaseBot
-from highrise import Highrise
+from highrise import BaseBot, Highrise
 
 class MyBot(BaseBot):
     async def on_start(self, session_metadata):
@@ -12,10 +11,13 @@ async def main():
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # في إصدار 25.1.0، الاتصال يتم عبر دالة static تابعة للمكتبة
+    # في الإصدار 25.1.0، الطريقة الوحيدة هي إنشاء كائن Highrise
+    # ثم الاتصال عبر دالة التعريف الخاصة بالبوت
     bot = MyBot()
-    # جرب هذا السطر بدلاً من كل ما سبق
-    await bot.connect(room_id, api_key)
+    hr = Highrise()
+    
+    # تشغيل البوت
+    await hr.connect(room_id, api_key, bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
