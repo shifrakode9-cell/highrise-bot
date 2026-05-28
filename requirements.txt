@@ -1,1 +1,2 @@
+--only-binary=:all:
 highrise-bot-sdk==25.1.0
