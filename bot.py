@@ -2,13 +2,15 @@ import os
 import asyncio
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from highrise import BaseBot, Highrise
+from highrise import BaseBot, BotDefinition, run_bot
 
+# 1. كود البوت الأساسي
 class Bot(BaseBot):
     async def on_start(self, session_metadata):
         print(f"--- اتصل البوت بنجاح! ---")
         await self.highrise.chat("مرحباً! البوت يعمل الآن.")
 
+# 2. خادم الصحة
 def run_health_server():
     port = int(os.environ.get("PORT", 10000))
     class HealthHandler(BaseHTTPRequestHandler):
@@ -18,16 +20,14 @@ def run_health_server():
             self.wfile.write(b"OK")
     HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
 
-async def main():
+# 3. التشغيل باستخدام BotDefinition (الطريقة الرسمية الأخيرة)
+if __name__ == "__main__":
+    threading.Thread(target=run_health_server, daemon=True).start()
+    
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # الحل للـ TypeError: إنشاء الكائن أولاً، ثم الاتصال باستخدام دوال خاصة
-    bot = Bot()
-    h = Highrise() 
-    # في النسخ الحديثة يتم تمرير البيانات لدالة الـ run وليس للـ init
-    await h.run(room_id, api_key, bot)
-
-if __name__ == "__main__":
-    threading.Thread(target=run_health_server, daemon=True).start()
-    asyncio.run(main())
+    # تعريف البوت
+    definition = BotDefinition(Bot(), room_id, api_key)
+    # التشغيل
+    asyncio.run(run_bot(definition))
