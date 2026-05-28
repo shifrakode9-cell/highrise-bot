@@ -1,27 +1,20 @@
 import os
 import asyncio
 from highrise import BaseBot
-from highrise.__main__ import main as highrise_main
-from highrise.models import BotDefinition
+from highrise.models import SessionMetadata
 
+# تعريف الكلاس الخاص بك كما هو معتاد
 class MyBot(BaseBot):
-    async def on_start(self, session_metadata):
+    async def on_start(self, session_metadata: SessionMetadata):
         print("--- تم الاتصال بنجاح ---")
         await self.highrise.chat("البوت متصل ويعمل!")
 
-async def main():
+# التشغيل المباشر بدون تعقيدات استيراد highrise_main
+if __name__ == "__main__":
     room_id = os.getenv("ROOM_ID")
     api_key = os.getenv("API_KEY")
     
-    # تعريف البوت وتمريره كـ definition
-    bot_definition = BotDefinition(
-        bot=MyBot(),
-        room_id=room_id,
-        api_key=api_key
-    )
-    
-    # تشغيل المكتبة مع تمرير قائمة التعريفات
-    await highrise_main([bot_definition])
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    # استخدام تعريف البوت المدمج
+    # نستخدم المترجم المدمج للمكتبة بشكل مباشر
+    import highrise
+    highrise.run(MyBot(), room_id, api_key)
