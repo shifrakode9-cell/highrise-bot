@@ -1,11 +1,17 @@
+import os
 import asyncio
-from highrise import Highrise
+from highrise import BaseBot, Highrise
+from highrise.__main__ import main as highrise_main
 
-async def main():
-    hr = Highrise()
-    # طباعة كل الدوال المتاحة في الكائن للبحث عن الدالة الصحيحة
-    print("--- الدوال المتاحة في Highrise هي: ---")
-    print(dir(hr))
+class MyBot(BaseBot):
+    async def on_start(self, session_metadata):
+        print("--- تم الاتصال بنجاح ---")
+        await self.highrise.chat("البوت متصل ويعمل!")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # الطريقة الوحيدة لتشغيل الإصدار 25.1.0 هي محاكاة تنفيذ المكتبة الأساسي
+    import sys
+    # نمرر معلومات الغرفة والمفتاح عبر متغيرات البيئة
+    # ثم نستدعي الدالة الرئيسية للمكتبة
+    sys.argv = ["highrise", os.getenv("ROOM_ID"), os.getenv("API_KEY")]
+    asyncio.run(highrise_main())
